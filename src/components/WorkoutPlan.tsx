@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,7 +209,7 @@ const WorkoutPlan = () => {
         description: `AI-generated ${workoutType} workout tailored to your fitness level`,
         exercises,
         duration_minutes: 45,
-        difficulty_level: 'Intermediate',
+        difficulty_level: 'beginner', // Changed from 'Intermediate' to 'beginner'
         status: 'scheduled',
         scheduled_date: new Date().toISOString().split('T')[0],
       });
