@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Target, Activity, AlertTriangle, Heart } from "lucide-react";
+import { Target, Activity, AlertTriangle, Heart, Clock, User, Weight, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,13 +18,38 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     activeInjuries: 0,
     currentStreak: 0
   });
+  const [profile, setProfile] = useState({
+    max_workout_time: null,
+    preferred_time: null,
+    age: null,
+    weight: null,
+    height: null,
+    fitness_level: null
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       loadStats();
+      loadProfile();
     }
   }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('max_workout_time, preferred_time, age, weight, height, fitness_level')
+        .eq('id', user?.id)
+        .single();
+
+      if (profileData) {
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -90,7 +115,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   if (loading) {
     return (
       <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 ${className}`}>
-        {[...Array(4)].map((_, i) => (
+        {[...Array(8)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4 sm:p-6">
               <div className="h-16 bg-gray-200 rounded"></div>
@@ -155,6 +180,76 @@ const QuickStats = ({ className }: QuickStatsProps) => {
             </div>
             <div className="bg-purple-500 p-2 sm:p-3 rounded-full">
               <Heart className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-indigo-600">Max Gym Time</p>
+              <p className="text-lg sm:text-2xl font-bold text-indigo-900">
+                {profile.max_workout_time ? `${profile.max_workout_time}m` : 'Not set'}
+              </p>
+            </div>
+            <div className="bg-indigo-500 p-2 sm:p-3 rounded-full">
+              <Clock className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-teal-600">Preferred Time</p>
+              <p className="text-lg sm:text-2xl font-bold text-teal-900">
+                {profile.preferred_time ? `${profile.preferred_time}m` : 'Not set'}
+              </p>
+            </div>
+            <div className="bg-teal-500 p-2 sm:p-3 rounded-full">
+              <Clock className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-pink-600">Age & Level</p>
+              <p className="text-lg sm:text-2xl font-bold text-pink-900">
+                {profile.age ? `${profile.age}y` : 'N/A'} 
+                <span className="text-sm block capitalize">
+                  {profile.fitness_level || 'Not set'}
+                </span>
+              </p>
+            </div>
+            <div className="bg-pink-500 p-2 sm:p-3 rounded-full">
+              <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-yellow-600">Weight & Height</p>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-900">
+                {profile.weight ? `${profile.weight}kg` : 'N/A'}
+                <span className="text-sm block">
+                  {profile.height || 'Height not set'}
+                </span>
+              </p>
+            </div>
+            <div className="bg-yellow-500 p-2 sm:p-3 rounded-full">
+              <Weight className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </CardContent>
