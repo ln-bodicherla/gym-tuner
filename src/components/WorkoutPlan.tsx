@@ -65,7 +65,7 @@ const WorkoutPlan = () => {
         ? data.status 
         : 'scheduled',
       description: data.description || '',
-      difficulty_level: data.difficulty_level || 'Intermediate',
+      difficulty_level: data.difficulty_level || 'beginner',
       duration_minutes: data.duration_minutes || 45
     };
   };
@@ -95,6 +95,13 @@ const WorkoutPlan = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkExistingPlanForToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return workoutPlans.some(plan => 
+      plan.scheduled_date === today && plan.status === 'scheduled'
+    );
   };
 
   const saveWorkoutPlan = async (planData: Omit<WorkoutPlan, 'id' | 'created_at'>) => {
@@ -190,6 +197,16 @@ const WorkoutPlan = () => {
       return;
     }
 
+    // Check if there's already a scheduled plan for today
+    if (checkExistingPlanForToday()) {
+      toast({
+        title: "Plan Already Exists",
+        description: "You already have a workout plan scheduled for today. Complete or delete it first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
       // Simulate AI workout generation
@@ -210,7 +227,7 @@ const WorkoutPlan = () => {
         description: `AI-generated ${workoutType} workout tailored to your fitness level`,
         exercises,
         duration_minutes: 45,
-        difficulty_level: 'beginner', // Changed from 'Intermediate' to 'beginner'
+        difficulty_level: 'beginner',
         status: 'scheduled',
         scheduled_date: new Date().toISOString().split('T')[0],
       });
@@ -237,6 +254,11 @@ const WorkoutPlan = () => {
       }
     } catch (error) {
       console.error('Error starting workout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start workout. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -334,6 +356,8 @@ const WorkoutPlan = () => {
     );
   }
 
+  const todayHasPlan = checkExistingPlanForToday();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -411,11 +435,19 @@ const WorkoutPlan = () => {
                   <CardDescription>
                     Get a personalized workout plan based on your profile and goals
                   </CardDescription>
+                  {todayHasPlan && (
+                    <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm text-amber-700">
+                        You already have a workout plan for today. Complete or delete it first.
+                      </span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Button 
                     onClick={generateWorkout} 
-                    disabled={isGenerating}
+                    disabled={isGenerating || todayHasPlan}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     size="lg"
                   >
