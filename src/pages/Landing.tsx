@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Users, Star } from "lucide-react";
+import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Users, Star, Crown, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Landing = () => {
@@ -52,6 +52,13 @@ const Landing = () => {
     }
   ];
 
+  const proFeatures = [
+    { icon: Star, text: "Unlimited AI workout plans" },
+    { icon: TrendingUp, text: "Advanced progress analytics" },
+    { icon: Target, text: "Personalized goal tracking" },
+    { icon: Crown, text: "Priority support" }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Navigation */}
@@ -70,6 +77,7 @@ const Landing = () => {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
+              <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
               <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors">Testimonials</a>
               <Link to="/auth">
                 <Button variant="outline" className="mr-4">Sign In</Button>
@@ -98,6 +106,7 @@ const Landing = () => {
             <div className="md:hidden py-4 border-t">
               <div className="flex flex-col space-y-4">
                 <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Features</a>
+                <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Pricing</a>
                 <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Testimonials</a>
                 <div className="px-4 pt-4 border-t space-y-2">
                   <Link to="/auth" className="block">
@@ -179,8 +188,122 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Choose Your Plan
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Start free and upgrade to unlock premium features when you're ready.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Free Plan */}
+            <Card className="border-2 border-gray-200">
+              <CardHeader className="text-center pb-8">
+                <CardTitle className="text-2xl mb-2">Free Plan</CardTitle>
+                <CardDescription className="text-gray-600 mb-4">
+                  Perfect for getting started
+                </CardDescription>
+                <div className="text-4xl font-bold text-gray-900">$0</div>
+                <div className="text-gray-600">/month</div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Basic workout tracking</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Limited AI suggestions</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Basic goal setting</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Injury tracking</span>
+                  </div>
+                </div>
+                
+                <Link to="/auth" className="block">
+                  <Button className="w-full" variant="outline">
+                    Get Started Free
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Pro Plan */}
+            <Card className="border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 relative">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-1">
+                  <Crown className="h-4 w-4" />
+                  <span>Most Popular</span>
+                </div>
+              </div>
+              <CardHeader className="text-center pb-8 pt-8">
+                <CardTitle className="text-2xl mb-2 flex items-center justify-center space-x-2">
+                  <Crown className="h-6 w-6 text-orange-500" />
+                  <span>Gym Tuner Pro</span>
+                </CardTitle>
+                <CardDescription className="text-gray-700 mb-4">
+                  Unlock your full potential
+                </CardDescription>
+                <div className="text-4xl font-bold text-gray-900">$9.99</div>
+                <div className="text-gray-600">/month</div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  {proFeatures.map((feature, index) => {
+                    const Icon = feature.icon;
+                    return (
+                      <div key={index} className="flex items-center space-x-3">
+                        <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-1.5 rounded-lg">
+                          <Icon className="h-3 w-3 text-white" />
+                        </div>
+                        <span className="text-sm font-medium">{feature.text}</span>
+                        <Check className="h-4 w-4 text-green-500 ml-auto" />
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Everything in Free Plan</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Advanced workout analytics</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Personalized injury management</span>
+                  </div>
+                </div>
+                
+                <Link to="/auth" className="block">
+                  <Button className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
+                    <Crown className="h-4 w-4 mr-2" />
+                    Start Pro Trial
+                  </Button>
+                </Link>
+                
+                <p className="text-xs text-gray-500 text-center">
+                  Cancel anytime • 7-day free trial
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Benefits Section */}
-      <section className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+      <section className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -224,7 +347,7 @@ const Landing = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24 bg-white">
+      <section id="testimonials" className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -303,7 +426,7 @@ const Landing = () => {
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">API</a></li>
               </ul>
             </div>
