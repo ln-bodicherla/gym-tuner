@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History, RefreshCw, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History, RefreshCw, AlertTriangle, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +52,8 @@ const WorkoutPlan = () => {
   const [activeInjuries, setActiveInjuries] = useState<any[]>([]);
   const [activeGoals, setActiveGoals] = useState<any[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [extendTime, setExtendTime] = useState<string>("");
+  const [extendingWorkout, setExtendingWorkout] = useState<string | null>(null);
 
   // Load user data from Supabase
   useEffect(() => {
@@ -347,6 +351,76 @@ const WorkoutPlan = () => {
     generateIntelligentWorkout(false, true);
   };
 
+  const extendWorkout = async (workoutId: string) => {
+    if (!extendTime || isNaN(parseInt(extendTime))) {
+      toast({
+        title: "Invalid Time",
+        description: "Please enter a valid number of minutes to extend.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const additionalMinutes = parseInt(extendTime);
+    const workout = workouts.find(w => w.id === workoutId);
+    
+    if (!workout) return;
+
+    // Generate additional exercises based on the additional time
+    const additionalExercises: Exercise[] = [];
+    const baseExerciseCount = Math.floor(additionalMinutes / 10); // Roughly 10 minutes per exercise
+    
+    // Simple exercise pool for extensions
+    const exercisePool = [
+      { name: 'Light Cardio', sets: 1, reps: `${Math.min(additionalMinutes, 15)} min`, rest: '0s' },
+      { name: 'Core Finisher', sets: 2, reps: '15-20', rest: '45s' },
+      { name: 'Stretching', sets: 1, reps: `${Math.min(additionalMinutes / 2, 10)} min`, rest: '0s' },
+      { name: 'Bodyweight Squats', sets: 2, reps: '10-15', rest: '60s' },
+      { name: 'Push-ups', sets: 2, reps: '8-12', rest: '60s' },
+      { name: 'Plank Hold', sets: 2, reps: '30-45s', rest: '60s' }
+    ];
+
+    // Add exercises based on available time
+    if (additionalMinutes >= 5) {
+      for (let i = 0; i < Math.min(baseExerciseCount + 1, 3); i++) {
+        const exercise = exercisePool[i % exercisePool.length];
+        additionalExercises.push({
+          ...exercise,
+          completed: false,
+          notes: 'Extended workout exercise'
+        });
+      }
+    }
+
+    // Update the workout
+    setWorkouts(prev => prev.map(w => {
+      if (w.id === workoutId) {
+        return {
+          ...w,
+          duration: w.duration + additionalMinutes,
+          exercises: [...w.exercises, ...additionalExercises],
+          status: 'in-progress' as const
+        };
+      }
+      return w;
+    }));
+
+    setActiveWorkout(workoutId);
+    setExtendingWorkout(null);
+    setExtendTime("");
+
+    await logActivity('workout_extended', `Extended workout by ${additionalMinutes} minutes`, {
+      workoutId,
+      additionalMinutes,
+      addedExercises: additionalExercises.length
+    });
+
+    toast({
+      title: "Workout Extended!",
+      description: `Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises. Workout is now active.`,
+    });
+  };
+
   const startWorkout = async (workoutId: string) => {
     setActiveWorkout(workoutId);
     setWorkouts(workouts.map(w => 
@@ -591,6 +665,48 @@ const WorkoutPlan = () => {
                     <div className="flex space-x-2">
                       {workout.status === 'scheduled' && (
                         <>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                                <span className="hidden sm:inline">Extend</span>
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                              <DialogHeader>
+                                <DialogTitle>Extend Workout</DialogTitle>
+                                <DialogDescription>
+                                  Add additional time to your workout. This will add extra exercises and mark the workout as active.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <label htmlFor="extend-time" className="text-right text-sm font-medium">
+                                    Minutes
+                                  </label>
+                                  <Input
+                                    id="extend-time"
+                                    type="number"
+                                    placeholder="15"
+                                    value={extendTime}
+                                    onChange={(e) => setExtendTime(e.target.value)}
+                                    className="col-span-3"
+                                    min="5"
+                                    max="60"
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button
+                                  onClick={() => extendWorkout(workout.id)}
+                                  className="bg-gradient-to-r from-green-600 to-blue-500"
+                                  disabled={!extendTime || isNaN(parseInt(extendTime))}
+                                >
+                                  Extend & Start Workout
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                           <Button 
                             onClick={() => generateIntelligentWorkout(true)}
                             disabled={generating}
