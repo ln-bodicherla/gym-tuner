@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -233,7 +234,7 @@ const WorkoutPlan = () => {
       if (updatedPlan) {
         setCurrentWorkout(updatedPlan);
         setActiveTab("active");
-        await logActivity('workout_extended', `Extended completed workout: ${plan.name}`);
+        await logActivity('workout_created', `Extended completed workout: ${plan.name}`);
         toast({
           title: "Workout Extended!",
           description: "Added 2 more exercises and moved to active workouts!",
