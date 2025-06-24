@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History } from "lucide-react";
+import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History, RefreshCw, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivity } from "@/contexts/ActivityContext";
 
 interface Exercise {
   name: string;
@@ -28,39 +29,72 @@ interface Workout {
   date: string;
   status: "scheduled" | "in-progress" | "completed";
   generatedAt: string;
+  basedOnData?: {
+    recentWorkouts: number;
+    activeInjuries: number;
+    activeGoals: number;
+  };
 }
 
 const WorkoutPlan = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { logActivity } = useActivity();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
+  const [activeInjuries, setActiveInjuries] = useState<any[]>([]);
+  const [activeGoals, setActiveGoals] = useState<any[]>([]);
 
-  // Load user profile from Supabase
+  // Load user data from Supabase
   useEffect(() => {
     if (user) {
-      loadUserProfile();
+      loadUserData();
     }
   }, [user]);
 
-  const loadUserProfile = async () => {
+  const loadUserData = async () => {
     try {
-      const { data, error } = await supabase
+      // Load profile
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading profile:', error);
-        return;
-      }
+      // Load recent workouts (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data: workoutsData } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', user?.id)
+        .gte('workout_date', thirtyDaysAgo.toISOString().split('T')[0])
+        .order('workout_date', { ascending: false });
 
-      setUserProfile(data);
+      // Load active injuries
+      const { data: injuriesData } = await supabase
+        .from('injuries')
+        .select('*')
+        .eq('user_id', user?.id)
+        .in('status', ['active', 'recovering']);
+
+      // Load active goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'active');
+
+      setUserProfile(profile);
+      setRecentWorkouts(workoutsData || []);
+      setActiveInjuries(injuriesData || []);
+      setActiveGoals(goalsData || []);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('Error loading user data:', error);
     } finally {
       setLoading(false);
     }
@@ -79,118 +113,233 @@ const WorkoutPlan = () => {
     localStorage.setItem('workoutPlans', JSON.stringify(workouts));
   }, [workouts]);
 
-  const generateDailyWorkout = () => {
+  const generateIntelligentWorkout = async (isRegenerate = false) => {
+    if (generating) return;
+    
+    setGenerating(true);
+
     // Check if user profile exists and has basic information
-    if (!userProfile) {
+    if (!userProfile || !userProfile.fitness_level) {
       toast({
         title: "Profile Required",
         description: "Please complete your profile first to generate personalized workouts.",
         variant: "destructive"
       });
+      setGenerating(false);
       return;
     }
 
-    // More lenient profile validation - only require fitness level
-    if (!userProfile.fitness_level) {
-      toast({
-        title: "Profile Incomplete",
-        description: "Please set your fitness level in your profile to generate workouts.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const maxTime = parseInt(userProfile.max_workout_time) || 60;
-    const fitnessLevel = userProfile.fitness_level || 'intermediate';
-    const limitations = userProfile.limitations || '';
-    
-    // Check if there's already a workout for today
     const today = new Date().toISOString().split('T')[0];
     const existingTodayWorkout = workouts.find(w => w.date === today);
     
-    if (existingTodayWorkout) {
+    if (existingTodayWorkout && !isRegenerate) {
       toast({
         title: "Today's Workout Exists",
-        description: "You already have a workout plan for today. Complete it or wait for tomorrow.",
+        description: "You already have a workout plan for today. Use regenerate to create a new one.",
         variant: "destructive"
       });
+      setGenerating(false);
       return;
     }
 
-    // Generate workout based on user profile
-    const workoutTypes = ['Upper Body Strength', 'Lower Body Power', 'Full Body Circuit', 'Core & Cardio', 'Flexibility & Recovery'];
-    const randomType = workoutTypes[Math.floor(Math.random() * workoutTypes.length)];
-    
-    let exercises: Exercise[] = [];
-    let focus: string[] = [];
-    let duration = Math.min(maxTime, 45); // Default to 45 min or user's max
+    try {
+      // Analyze user data for intelligent generation
+      const maxTime = parseInt(userProfile.max_workout_time) || 60;
+      const fitnessLevel = userProfile.fitness_level || 'intermediate';
+      const limitations = userProfile.limitations || '';
+      
+      // Analyze recent workout patterns
+      const recentWorkoutTypes = recentWorkouts.map(w => w.name.toLowerCase());
+      const workoutFrequency = recentWorkouts.length;
+      
+      // Get muscle groups worked recently
+      const recentMuscleGroups = [];
+      recentWorkouts.slice(0, 7).forEach(workout => {
+        if (workout.name.toLowerCase().includes('chest') || workout.name.toLowerCase().includes('push')) {
+          recentMuscleGroups.push('chest', 'shoulders', 'triceps');
+        }
+        if (workout.name.toLowerCase().includes('back') || workout.name.toLowerCase().includes('pull')) {
+          recentMuscleGroups.push('back', 'biceps');
+        }
+        if (workout.name.toLowerCase().includes('leg') || workout.name.toLowerCase().includes('squat')) {
+          recentMuscleGroups.push('legs', 'glutes');
+        }
+      });
 
-    // Adjust workout based on limitations
-    const hasBackIssues = limitations.toLowerCase().includes('back');
-    const hasKneeIssues = limitations.toLowerCase().includes('knee');
+      // Determine workout type based on data
+      let workoutType;
+      let focus: string[] = [];
+      let exercises: Exercise[] = [];
+      let duration = Math.min(maxTime, 45);
 
-    switch (randomType) {
-      case 'Upper Body Strength':
-        focus = ['Chest', 'Back', 'Shoulders', 'Arms'];
-        exercises = [
-          { name: hasBackIssues ? 'Push-ups (Modified)' : 'Push-ups', sets: 3, reps: '10-12', rest: '60s', completed: false, notes: hasBackIssues ? 'Modified for back safety' : '' },
-          { name: 'Dumbbell Rows', sets: 3, reps: '10-12', rest: '90s', completed: false },
-          { name: 'Shoulder Press', sets: 3, reps: '8-10', rest: '90s', completed: false },
-          { name: 'Bicep Curls', sets: 2, reps: '12-15', rest: '60s', completed: false },
-          { name: 'Tricep Dips', sets: 2, reps: '10-12', rest: '60s', completed: false }
-        ];
-        break;
-      case 'Lower Body Power':
-        focus = ['Legs', 'Glutes'];
-        exercises = [
-          { name: hasKneeIssues ? 'Wall Sits' : 'Squats', sets: 3, reps: hasKneeIssues ? '30-45s' : '12-15', rest: '90s', completed: false, notes: hasKneeIssues ? 'Modified for knee safety' : '' },
-          { name: 'Glute Bridges', sets: 3, reps: '15-20', rest: '60s', completed: false },
-          { name: hasKneeIssues ? 'Calf Raises' : 'Lunges', sets: 3, reps: '10 each leg', rest: '60s', completed: false },
-          { name: 'Deadlifts (Light)', sets: 2, reps: '8-10', rest: '90s', completed: false, notes: hasBackIssues ? 'Use very light weight' : '' }
-        ];
-        break;
-      default:
-        focus = ['Full Body'];
-        exercises = [
-          { name: 'Jumping Jacks', sets: 3, reps: '30s', rest: '30s', completed: false },
-          { name: hasBackIssues ? 'Modified Burpees' : 'Burpees', sets: 2, reps: '5-8', rest: '90s', completed: false },
-          { name: 'Mountain Climbers', sets: 3, reps: '30s', rest: '30s', completed: false },
-          { name: 'Plank', sets: 3, reps: '30-45s', rest: '60s', completed: false }
-        ];
+      // Smart workout selection logic
+      if (recentMuscleGroups.filter(g => g === 'chest').length >= 2) {
+        // Avoid chest if worked recently
+        workoutType = recentMuscleGroups.filter(g => g === 'legs').length >= 2 ? 'Upper Back & Core' : 'Lower Body Strength';
+      } else if (recentMuscleGroups.filter(g => g === 'legs').length >= 2) {
+        // Avoid legs if worked recently
+        workoutType = 'Upper Body Push';
+      } else if (workoutFrequency >= 4) {
+        // High frequency - include recovery
+        workoutType = 'Active Recovery & Flexibility';
+      } else {
+        // Default variety
+        const types = ['Full Body Circuit', 'Upper Body Strength', 'Lower Body Power', 'Core & Cardio'];
+        workoutType = types[Math.floor(Math.random() * types.length)];
+      }
+
+      // Account for injuries
+      const hasBackIssues = activeInjuries.some(i => i.name.toLowerCase().includes('back')) || 
+                           limitations.toLowerCase().includes('back');
+      const hasKneeIssues = activeInjuries.some(i => i.name.toLowerCase().includes('knee')) || 
+                           limitations.toLowerCase().includes('knee');
+      const hasShoulderIssues = activeInjuries.some(i => i.name.toLowerCase().includes('shoulder')) || 
+                               limitations.toLowerCase().includes('shoulder');
+
+      // Generate exercises based on workout type and limitations
+      switch (workoutType) {
+        case 'Upper Body Push':
+          focus = ['Chest', 'Shoulders', 'Triceps'];
+          exercises = [
+            { 
+              name: hasShoulderIssues ? 'Wall Push-ups' : (hasBackIssues ? 'Incline Push-ups' : 'Push-ups'), 
+              sets: 3, reps: '10-12', rest: '60s', completed: false,
+              notes: hasShoulderIssues || hasBackIssues ? 'Modified for injury safety' : ''
+            },
+            { 
+              name: hasShoulderIssues ? 'Light Lateral Raises' : 'Shoulder Press', 
+              sets: 3, reps: '8-10', rest: '90s', completed: false 
+            },
+            { name: 'Tricep Dips', sets: 3, reps: '8-12', rest: '60s', completed: false },
+            { name: 'Chest Fly (Light)', sets: 2, reps: '12-15', rest: '60s', completed: false }
+          ];
+          break;
+
+        case 'Lower Body Power':
+          focus = ['Legs', 'Glutes'];
+          exercises = [
+            { 
+              name: hasKneeIssues ? 'Wall Sits' : 'Bodyweight Squats', 
+              sets: 3, reps: hasKneeIssues ? '30-45s' : '12-15', rest: '90s', completed: false,
+              notes: hasKneeIssues ? 'Modified for knee safety' : ''
+            },
+            { name: 'Glute Bridges', sets: 3, reps: '15-20', rest: '60s', completed: false },
+            { 
+              name: hasKneeIssues ? 'Standing Calf Raises' : 'Reverse Lunges', 
+              sets: 3, reps: '10 each leg', rest: '60s', completed: false 
+            },
+            { 
+              name: 'Single Leg Deadlifts', sets: 2, reps: '8 each leg', rest: '90s', completed: false,
+              notes: hasBackIssues ? 'Use light weight or bodyweight only' : ''
+            }
+          ];
+          break;
+
+        case 'Active Recovery & Flexibility':
+          focus = ['Recovery', 'Flexibility'];
+          duration = Math.min(maxTime, 30);
+          exercises = [
+            { name: 'Gentle Stretching Routine', sets: 1, reps: '10 min', rest: '0s', completed: false },
+            { name: 'Foam Rolling', sets: 1, reps: '5 min', rest: '0s', completed: false },
+            { name: 'Deep Breathing', sets: 3, reps: '2 min', rest: '30s', completed: false },
+            { name: 'Light Walking', sets: 1, reps: '10 min', rest: '0s', completed: false }
+          ];
+          break;
+
+        case 'Upper Back & Core':
+          focus = ['Back', 'Core'];
+          exercises = [
+            { name: 'Band Pull-Aparts', sets: 3, reps: '15-20', rest: '45s', completed: false },
+            { 
+              name: hasBackIssues ? 'Modified Plank' : 'Plank', 
+              sets: 3, reps: hasBackIssues ? '20-30s' : '30-60s', rest: '60s', completed: false 
+            },
+            { name: 'Reverse Fly', sets: 3, reps: '12-15', rest: '60s', completed: false },
+            { name: 'Dead Bug', sets: 2, reps: '10 each side', rest: '45s', completed: false }
+          ];
+          break;
+
+        default: // Full Body Circuit
+          focus = ['Full Body'];
+          exercises = [
+            { name: 'Jumping Jacks', sets: 3, reps: '30s', rest: '30s', completed: false },
+            { 
+              name: hasBackIssues ? 'Modified Burpees' : 'Burpees', 
+              sets: 2, reps: '5-8', rest: '90s', completed: false 
+            },
+            { name: 'Mountain Climbers', sets: 3, reps: '30s', rest: '30s', completed: false },
+            { name: 'Bodyweight Squats', sets: 3, reps: '12-15', rest: '60s', completed: false }
+          ];
+      }
+
+      // Adjust duration based on fitness level
+      if (fitnessLevel === 'beginner') {
+        duration = Math.min(maxTime, 25);
+      } else if (fitnessLevel === 'advanced' || fitnessLevel === 'expert') {
+        duration = Math.min(maxTime, 60);
+      }
+
+      const newWorkout: Workout = {
+        id: `workout_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        name: `${workoutType} - ${new Date().toLocaleDateString()}`,
+        duration,
+        difficulty: fitnessLevel,
+        focus,
+        exercises,
+        date: today,
+        status: 'scheduled',
+        generatedAt: new Date().toISOString(),
+        basedOnData: {
+          recentWorkouts: recentWorkouts.length,
+          activeInjuries: activeInjuries.length,
+          activeGoals: activeGoals.length
+        }
+      };
+
+      // Remove existing workout for today if regenerating
+      if (isRegenerate && existingTodayWorkout) {
+        setWorkouts(prev => prev.filter(w => w.id !== existingTodayWorkout.id));
+      }
+
+      setWorkouts(prev => [...prev, newWorkout]);
+
+      // Log activity
+      await logActivity(
+        'plan_generated',
+        `Generated ${workoutType.toLowerCase()} workout plan`,
+        { 
+          workoutType,
+          duration,
+          basedOnRecentWorkouts: recentWorkouts.length,
+          consideredInjuries: activeInjuries.length,
+          isRegenerate
+        }
+      );
+      
+      toast({
+        title: isRegenerate ? "Workout Regenerated!" : "Smart Workout Generated!",
+        description: `A ${duration}-minute ${workoutType.toLowerCase()} workout based on your recent activity and goals.`,
+      });
+
+    } catch (error) {
+      console.error('Error generating workout:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate workout plan. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
     }
-
-    // Adjust duration based on fitness level
-    if (fitnessLevel === 'beginner') {
-      duration = Math.min(maxTime, 30);
-    } else if (fitnessLevel === 'advanced' || fitnessLevel === 'expert') {
-      duration = Math.min(maxTime, 60);
-    }
-
-    const newWorkout: Workout = {
-      id: `workout_${Date.now()}`,
-      name: `${randomType} - ${new Date().toLocaleDateString()}`,
-      duration,
-      difficulty: fitnessLevel,
-      focus,
-      exercises,
-      date: today,
-      status: 'scheduled',
-      generatedAt: new Date().toISOString()
-    };
-
-    setWorkouts([...workouts, newWorkout]);
-    
-    toast({
-      title: "Workout Generated!",
-      description: `A ${duration}-minute ${randomType.toLowerCase()} workout has been created for today.`,
-    });
   };
 
-  const startWorkout = (workoutId: string) => {
+  const startWorkout = async (workoutId: string) => {
     setActiveWorkout(workoutId);
     setWorkouts(workouts.map(w => 
       w.id === workoutId ? { ...w, status: "in-progress" as const } : w
     ));
+    
+    await logActivity('workout_created', 'Started workout session');
     
     toast({
       title: "Workout Started!",
@@ -209,11 +358,33 @@ const WorkoutPlan = () => {
     }));
   };
 
-  const finishWorkout = (workoutId: string) => {
+  const finishWorkout = async (workoutId: string) => {
+    const workout = workouts.find(w => w.id === workoutId);
     setWorkouts(workouts.map(w => 
       w.id === workoutId ? { ...w, status: "completed" as const } : w
     ));
     setActiveWorkout(null);
+
+    // Save completed workout to Supabase
+    if (workout && user) {
+      try {
+        await supabase.from('workouts').insert({
+          user_id: user.id,
+          name: workout.name,
+          duration_minutes: workout.duration,
+          workout_date: workout.date,
+          notes: `Completed: ${workout.exercises.filter(e => e.completed).length}/${workout.exercises.length} exercises`
+        });
+
+        await logActivity('workout_completed', 'Completed workout session', {
+          workoutName: workout.name,
+          duration: workout.duration,
+          completedExercises: workout.exercises.filter(e => e.completed).length
+        });
+      } catch (error) {
+        console.error('Error saving workout:', error);
+      }
+    }
     
     toast({
       title: "Workout Completed!",
@@ -257,21 +428,64 @@ const WorkoutPlan = () => {
                 <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
               <div>
-                <CardTitle className="text-lg sm:text-xl">Daily Workout Plans</CardTitle>
-                <CardDescription className="text-sm">Personalized workouts based on your profile and available time</CardDescription>
+                <CardTitle className="text-lg sm:text-xl">AI Workout Plans</CardTitle>
+                <CardDescription className="text-sm">
+                  Smart workouts based on your history, injuries, and goals
+                </CardDescription>
               </div>
             </div>
             <Button 
-              onClick={generateDailyWorkout}
+              onClick={() => generateIntelligentWorkout(false)}
+              disabled={generating}
               className="bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-600"
               size="sm"
             >
-              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Generate</span>
+              {generating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
+                  <span className="hidden sm:inline">Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Generate</span>
+                </>
+              )}
             </Button>
           </div>
         </CardHeader>
       </Card>
+
+      {/* Data Overview Card */}
+      {(recentWorkouts.length > 0 || activeInjuries.length > 0 || activeGoals.length > 0) && (
+        <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
+          <CardHeader className="px-4 sm:px-6 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-700">Your Data Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 sm:px-6 pt-0">
+            <div className="flex flex-wrap gap-2">
+              {recentWorkouts.length > 0 && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  <History className="h-3 w-3 mr-1" />
+                  {recentWorkouts.length} recent workouts
+                </Badge>
+              )}
+              {activeInjuries.length > 0 && (
+                <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {activeInjuries.length} active injuries
+                </Badge>
+              )}
+              {activeGoals.length > 0 && (
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  <Zap className="h-3 w-3 mr-1" />
+                  {activeGoals.length} active goals
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="today" className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-4">
@@ -287,9 +501,22 @@ const WorkoutPlan = () => {
               <CardContent className="px-4 sm:px-6">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50 text-gray-400" />
                 <p className="text-gray-500 mb-4">No workout planned for today</p>
-                <Button onClick={generateDailyWorkout} className="bg-gradient-to-r from-green-600 to-blue-500">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Generate Today's Workout
+                <Button 
+                  onClick={() => generateIntelligentWorkout(false)} 
+                  disabled={generating}
+                  className="bg-gradient-to-r from-green-600 to-blue-500"
+                >
+                  {generating ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Generating Smart Workout...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Generate Smart Workout
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -314,14 +541,32 @@ const WorkoutPlan = () => {
                           <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>Today</span>
                         </span>
+                        {workout.basedOnData && (
+                          <span className="text-blue-600 text-xs">
+                            Based on your data
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
-                    {workout.status === 'scheduled' && (
-                      <Button onClick={() => startWorkout(workout.id)} className="bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-600" size="sm">
-                        <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Start</span>
-                      </Button>
-                    )}
+                    <div className="flex space-x-2">
+                      {workout.status === 'scheduled' && (
+                        <>
+                          <Button 
+                            onClick={() => generateIntelligentWorkout(true)}
+                            disabled={generating}
+                            variant="outline" 
+                            size="sm"
+                          >
+                            <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${generating ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Regenerate</span>
+                          </Button>
+                          <Button onClick={() => startWorkout(workout.id)} className="bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-600" size="sm">
+                            <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                            <span className="hidden sm:inline">Start</span>
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 sm:px-6">
@@ -332,12 +577,32 @@ const WorkoutPlan = () => {
                       ))}
                     </div>
                     
+                    {workout.basedOnData && (
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <p className="text-xs text-blue-700 font-medium mb-1">Generated using:</p>
+                        <div className="flex flex-wrap gap-2 text-xs text-blue-600">
+                          <span>• {workout.basedOnData.recentWorkouts} recent workouts</span>
+                          {workout.basedOnData.activeInjuries > 0 && (
+                            <span>• {workout.basedOnData.activeInjuries} injury considerations</span>
+                          )}
+                          {workout.basedOnData.activeGoals > 0 && (
+                            <span>• {workout.basedOnData.activeGoals} active goals</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm sm:text-base">Exercises</h4>
                       <div className="grid grid-cols-1 gap-2">
                         {workout.exercises.map((exercise, index) => (
                           <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <span className="text-xs sm:text-sm font-medium">{exercise.name}</span>
+                            <div>
+                              <span className="text-xs sm:text-sm font-medium">{exercise.name}</span>
+                              {exercise.notes && (
+                                <p className="text-xs text-blue-600 mt-1">💡 {exercise.notes}</p>
+                              )}
+                            </div>
                             <span className="text-xs text-gray-600">{exercise.sets} × {exercise.reps}</span>
                           </div>
                         ))}
