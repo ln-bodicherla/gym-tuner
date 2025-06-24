@@ -1,143 +1,193 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Target, Plus, Calendar, TrendingUp, Award } from "lucide-react";
+import { Target, Plus, Trash2, Trophy, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Goal {
   id: string;
   title: string;
-  category: string;
-  target: string;
-  current: string;
-  unit: string;
-  deadline: string;
-  priority: string;
   description: string;
-  progress: number;
+  target_value: number;
+  current_value: number;
+  unit: string;
+  target_date: string;
+  achieved_date?: string;
+  status: string;
 }
 
 const GoalManager = () => {
   const { toast } = useToast();
-  const [goals, setGoals] = useState<Goal[]>([
-    {
-      id: "1",
-      title: "Weight Loss",
-      category: "weight",
-      target: "165",
-      current: "175",
-      unit: "lbs",
-      deadline: "2024-04-15",
-      priority: "high",
-      description: "Lose 10 pounds for summer",
-      progress: 0
-    },
-    {
-      id: "2",
-      title: "Bench Press PR",
-      category: "strength",
-      target: "200",
-      current: "175",
-      unit: "lbs",
-      deadline: "2024-03-30",
-      priority: "medium",
-      description: "Increase bench press to 200 lbs",
-      progress: 60
-    }
-  ]);
-
+  const { user } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newGoal, setNewGoal] = useState({
     title: "",
-    category: "",
-    target: "",
-    current: "",
+    description: "",
+    target_value: "",
+    current_value: "",
     unit: "",
-    deadline: "",
-    priority: "",
-    description: ""
+    target_date: ""
   });
 
-  const goalCategories = [
-    { value: "weight", label: "Weight Management", icon: "⚖️" },
-    { value: "strength", label: "Strength", icon: "💪" },
-    { value: "endurance", label: "Endurance", icon: "🏃" },
-    { value: "flexibility", label: "Flexibility", icon: "🤸" },
-    { value: "body-composition", label: "Body Composition", icon: "📊" },
-    { value: "performance", label: "Performance", icon: "🏆" }
-  ];
+  // Fetch goals from database
+  const fetchGoals = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-  const priorityLevels = [
-    { value: "low", label: "Low", color: "bg-gray-100 text-gray-800" },
-    { value: "medium", label: "Medium", color: "bg-blue-100 text-blue-800" },
-    { value: "high", label: "High", color: "bg-red-100 text-red-800" }
-  ];
+      if (error) throw error;
+      setGoals(data || []);
+    } catch (error) {
+      console.error('Error fetching goals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load goals",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleAddGoal = () => {
-    if (!newGoal.title || !newGoal.category || !newGoal.target) {
+  useEffect(() => {
+    fetchGoals();
+  }, [user]);
+
+  const handleAddGoal = async () => {
+    if (!user || !newGoal.title || !newGoal.target_value) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in title and target value.",
         variant: "destructive"
       });
       return;
     }
 
-    const current = parseFloat(newGoal.current) || 0;
-    const target = parseFloat(newGoal.target) || 0;
-    const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .insert({
+          user_id: user.id,
+          title: newGoal.title,
+          description: newGoal.description,
+          target_value: parseFloat(newGoal.target_value),
+          current_value: parseFloat(newGoal.current_value) || 0,
+          unit: newGoal.unit,
+          target_date: newGoal.target_date || null,
+          status: 'active'
+        });
 
-    const goal: Goal = {
-      id: Date.now().toString(),
-      ...newGoal,
-      progress
-    };
+      if (error) throw error;
 
-    setGoals([...goals, goal]);
-    setNewGoal({
-      title: "",
-      category: "",
-      target: "",
-      current: "",
-      unit: "",
-      deadline: "",
-      priority: "",
-      description: ""
-    });
+      setNewGoal({
+        title: "",
+        description: "",
+        target_value: "",
+        current_value: "",
+        unit: "",
+        target_date: ""
+      });
 
-    toast({
-      title: "Goal Added",
-      description: "Your new goal has been set and will influence your workout plans.",
-    });
+      toast({
+        title: "Goal Added",
+        description: "Your new goal has been created successfully.",
+      });
+
+      fetchGoals();
+    } catch (error) {
+      console.error('Error adding goal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add goal",
+        variant: "destructive"
+      });
+    }
   };
 
-  const updateGoalProgress = (id: string, newCurrent: string) => {
-    setGoals(goals.map(goal => {
-      if (goal.id === id) {
-        const current = parseFloat(newCurrent) || 0;
-        const target = parseFloat(goal.target) || 0;
-        const progress = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-        return { ...goal, current: newCurrent, progress };
-      }
-      return goal;
-    }));
+  const handleAchieveGoal = async (goalId: string) => {
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .update({
+          status: 'achieved',
+          achieved_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', goalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Congratulations! 🎉",
+        description: "Goal marked as achieved!",
+      });
+
+      fetchGoals();
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update goal",
+        variant: "destructive"
+      });
+    }
   };
 
-  const getPriorityColor = (priority: string) => {
-    const level = priorityLevels.find(l => l.value === priority);
-    return level?.color || "bg-gray-100 text-gray-800";
+  const handleRemoveGoal = async (goalId: string) => {
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .delete()
+        .eq('id', goalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Goal Removed",
+        description: "Goal has been deleted successfully.",
+      });
+
+      fetchGoals();
+    } catch (error) {
+      console.error('Error removing goal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove goal",
+        variant: "destructive"
+      });
+    }
   };
 
-  const getCategoryIcon = (category: string) => {
-    const cat = goalCategories.find(c => c.value === category);
-    return cat?.icon || "🎯";
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'achieved':
+        return 'bg-green-100 text-green-800';
+      case 'active':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -149,7 +199,7 @@ const GoalManager = () => {
             </div>
             <div>
               <CardTitle>Goal Manager</CardTitle>
-              <CardDescription>Set and track your fitness goals to stay motivated</CardDescription>
+              <CardDescription>Set and track your fitness goals</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -159,116 +209,81 @@ const GoalManager = () => {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Create New Goal</h3>
               
-              <div className="space-y-2">
-                <Label htmlFor="title">Goal Title *</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., Lose 10 pounds"
-                  value={newGoal.title}
-                  onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Category *</Label>
-                <Select value={newGoal.category} onValueChange={(value) => setNewGoal({...newGoal, category: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {goalCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        <span className="flex items-center space-x-2">
-                          <span>{category.icon}</span>
-                          <span>{category.label}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="current">Current *</Label>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="title">Goal Title *</Label>
                   <Input
-                    id="current"
-                    type="number"
-                    placeholder="0"
-                    value={newGoal.current}
-                    onChange={(e) => setNewGoal({...newGoal, current: e.target.value})}
+                    id="title"
+                    placeholder="e.g., Lose 10 pounds"
+                    value={newGoal.title}
+                    onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="target">Target *</Label>
-                  <Input
-                    id="target"
-                    type="number"
-                    placeholder="0"
-                    value={newGoal.target}
-                    onChange={(e) => setNewGoal({...newGoal, target: e.target.value})}
-                  />
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label htmlFor="current">Current</Label>
+                    <Input
+                      id="current"
+                      type="number"
+                      placeholder="0"
+                      value={newGoal.current_value}
+                      onChange={(e) => setNewGoal({...newGoal, current_value: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="target">Target *</Label>
+                    <Input
+                      id="target"
+                      type="number"
+                      placeholder="0"
+                      value={newGoal.target_value}
+                      onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="unit">Unit</Label>
+                    <Input
+                      id="unit"
+                      placeholder="lbs"
+                      value={newGoal.unit}
+                      onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
+                    />
+                  </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="unit">Unit</Label>
+                <div>
+                  <Label htmlFor="target_date">Target Date</Label>
                   <Input
-                    id="unit"
-                    placeholder="lbs"
-                    value={newGoal.unit}
-                    onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deadline">Target Date</Label>
-                  <Input
-                    id="deadline"
+                    id="target_date"
                     type="date"
-                    value={newGoal.deadline}
-                    onChange={(e) => setNewGoal({...newGoal, deadline: e.target.value})}
+                    value={newGoal.target_date}
+                    onChange={(e) => setNewGoal({...newGoal, target_date: e.target.value})}
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Priority</Label>
-                  <Select value={newGoal.priority} onValueChange={(value) => setNewGoal({...newGoal, priority: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {priorityLevels.map((level) => (
-                        <SelectItem key={level.value} value={level.value}>
-                          {level.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Why is this goal important to you?"
+                    value={newGoal.description}
+                    onChange={(e) => setNewGoal({...newGoal, description: e.target.value})}
+                  />
                 </div>
+                
+                <Button onClick={handleAddGoal} className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Goal
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Why is this goal important to you?"
-                  value={newGoal.description}
-                  onChange={(e) => setNewGoal({...newGoal, description: e.target.value})}
-                />
-              </div>
-              
-              <Button onClick={handleAddGoal} className="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Goal
-              </Button>
             </div>
 
             {/* Current Goals */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Active Goals</h3>
+              <h3 className="font-semibold text-lg">Your Goals</h3>
               
               {goals.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -278,35 +293,37 @@ const GoalManager = () => {
               ) : (
                 <div className="space-y-4">
                   {goals.map((goal) => (
-                    <Card key={goal.id} className="border-l-4 border-l-purple-500">
+                    <Card key={goal.id} className={`border-l-4 ${goal.status === 'achieved' ? 'border-l-green-500 bg-green-50' : 'border-l-blue-500'}`}>
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-lg">{getCategoryIcon(goal.category)}</span>
-                              <h4 className="font-medium">{goal.title}</h4>
-                              <Badge className={getPriorityColor(goal.priority)}>
-                                {goal.priority}
-                              </Badge>
+                            <div>
+                              <div className="flex items-center space-x-2 mb-1">
+                                <h4 className="font-medium">{goal.title}</h4>
+                                <Badge className={getStatusColor(goal.status)}>
+                                  {goal.status}
+                                </Badge>
+                                {goal.status === 'achieved' && (
+                                  <Trophy className="h-4 w-4 text-yellow-500" />
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                <span>{goal.current_value || 0} / {goal.target_value} {goal.unit}</span>
+                              </div>
                             </div>
-                            
-                            {goal.progress >= 100 && (
-                              <Award className="h-5 w-5 text-yellow-500" />
-                            )}
                           </div>
                           
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>Progress: {goal.current} / {goal.target} {goal.unit}</span>
-                              <span className="font-medium">{Math.round(goal.progress)}%</span>
-                            </div>
-                            <Progress value={goal.progress} className="h-2" />
-                          </div>
-                          
-                          {goal.deadline && (
+                          {goal.target_date && (
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
                               <Calendar className="h-3 w-3" />
-                              <span>Target: {new Date(goal.deadline).toLocaleDateString()}</span>
+                              <span>Target: {new Date(goal.target_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+
+                          {goal.achieved_date && (
+                            <div className="flex items-center space-x-2 text-sm text-green-600">
+                              <Trophy className="h-3 w-3" />
+                              <span>Achieved: {new Date(goal.achieved_date).toLocaleDateString()}</span>
                             </div>
                           )}
                           
@@ -315,14 +332,23 @@ const GoalManager = () => {
                           )}
                           
                           <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              placeholder="Update current"
-                              className="flex-1"
-                              onBlur={(e) => updateGoalProgress(goal.id, e.target.value)}
-                            />
-                            <Button size="sm" variant="outline">
-                              <TrendingUp className="h-3 w-3" />
+                            {goal.status !== 'achieved' && (
+                              <Button 
+                                size="sm" 
+                                className="bg-green-500 hover:bg-green-600"
+                                onClick={() => handleAchieveGoal(goal.id)}
+                              >
+                                <Trophy className="h-3 w-3 mr-1" />
+                                Mark Achieved
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleRemoveGoal(goal.id)}
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Remove
                             </Button>
                           </div>
                         </div>
