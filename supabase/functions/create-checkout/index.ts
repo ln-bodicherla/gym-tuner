@@ -74,7 +74,7 @@ serve(async (req) => {
       ],
       mode: "subscription",
       subscription_data: {
-        trial_period_days: 7, // 7-day free trial
+        // No trial period - direct purchase
         metadata: {
           user_id: user.id,
           user_email: user.email,

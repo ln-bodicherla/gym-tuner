@@ -70,10 +70,10 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for both active and trialing subscriptions
+    // Only check for active subscriptions (no trial)
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "all", // Get all subscriptions
+      status: "active",
       limit: 10,
     });
     
@@ -82,26 +82,21 @@ serve(async (req) => {
       statuses: subscriptions.data.map(s => ({ id: s.id, status: s.status }))
     });
 
-    // Find active or trialing subscription
+    // Find only active subscriptions
     const activeSubscription = subscriptions.data.find(sub => 
-      sub.status === "active" || sub.status === "trialing"
+      sub.status === "active"
     );
 
     const hasActiveSub = !!activeSubscription;
     let subscriptionTier = null;
     let subscriptionEnd = null;
-    let trialEnd = null;
 
     if (hasActiveSub && activeSubscription) {
       subscriptionEnd = new Date(activeSubscription.current_period_end * 1000).toISOString();
-      if (activeSubscription.trial_end) {
-        trialEnd = new Date(activeSubscription.trial_end * 1000).toISOString();
-      }
       logStep("Active subscription found", { 
         subscriptionId: activeSubscription.id, 
         status: activeSubscription.status,
-        endDate: subscriptionEnd, 
-        trialEnd 
+        endDate: subscriptionEnd
       });
       
       // Determine subscription tier from price
@@ -127,7 +122,7 @@ serve(async (req) => {
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      trial_end: trialEnd,
+      trial_end: null, // No trial period
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
@@ -135,8 +130,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
-      subscription_end: subscriptionEnd,
-      trial_end: trialEnd
+      subscription_end: subscriptionEnd
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

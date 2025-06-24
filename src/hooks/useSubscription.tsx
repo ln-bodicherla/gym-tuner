@@ -7,7 +7,6 @@ interface SubscriptionInfo {
   subscribed: boolean;
   subscription_tier?: string;
   subscription_end?: string;
-  trial_end?: string;
 }
 
 export const useSubscription = () => {
@@ -49,20 +48,14 @@ export const useSubscription = () => {
     }
   };
 
-  const isTrialActive = () => {
-    if (!subscriptionInfo?.trial_end) return false;
-    return new Date(subscriptionInfo.trial_end) > new Date();
-  };
-
   const hasAccess = () => {
-    return subscriptionInfo?.subscribed || isTrialActive();
+    return subscriptionInfo?.subscribed || false;
   };
 
   return {
     subscriptionInfo,
     loading,
     checkSubscriptionStatus,
-    isTrialActive,
     hasAccess,
   };
 };
