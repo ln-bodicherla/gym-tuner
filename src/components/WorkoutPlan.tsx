@@ -1,10 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +16,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import SubscriptionCard from "./SubscriptionCard";
 import LockedFeature from "./LockedFeature";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useForm } from "react-hook-form";
 
 interface Exercise {
   name: string;
@@ -42,11 +45,20 @@ const WorkoutPlan = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentWorkout, setCurrentWorkout] = useState<WorkoutPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showExtendDialog, setShowExtendDialog] = useState(false);
+  const [planToExtend, setPlanToExtend] = useState<WorkoutPlan | null>(null);
+  
   const { toast } = useToast();
   const { user } = useAuth();
   const { logActivity } = useActivityLogger();
   const { subscriptionInfo, hasAccess } = useSubscription();
   const isMobile = useIsMobile();
+
+  const form = useForm({
+    defaultValues: {
+      additionalMinutes: ""
+    }
+  });
 
   useEffect(() => {
     if (user) {
@@ -216,28 +228,59 @@ const WorkoutPlan = () => {
     }
   };
 
-  const extendCompletedWorkout = async (plan: WorkoutPlan) => {
-    const additionalExercises: Exercise[] = [
-      { name: 'Burpees', sets: 2, reps: '8-10', rest: '90s', completed: false },
-      { name: 'Mountain Climbers', sets: 2, reps: '20', rest: '45s', completed: false },
+  const generateAdditionalExercises = (additionalMinutes: number): Exercise[] => {
+    const exercisePool = [
+      { name: 'Burpees', sets: 2, reps: '8-10', rest: '90s' },
+      { name: 'Mountain Climbers', sets: 2, reps: '20', rest: '45s' },
+      { name: 'Jumping Jacks', sets: 3, reps: '15', rest: '30s' },
+      { name: 'High Knees', sets: 2, reps: '30s', rest: '60s' },
+      { name: 'Push-ups', sets: 2, reps: '10-12', rest: '60s' },
+      { name: 'Squats', sets: 3, reps: '12-15', rest: '45s' },
+      { name: 'Plank Hold', sets: 2, reps: '30-45s', rest: '60s' },
+      { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '45s' },
     ];
 
-    const updatedExercises = [...plan.exercises, ...additionalExercises];
+    // Roughly estimate 1 exercise per 7-8 minutes
+    const exerciseCount = Math.max(1, Math.floor(additionalMinutes / 7));
+    const selectedExercises: Exercise[] = [];
+
+    for (let i = 0; i < exerciseCount; i++) {
+      const randomIndex = Math.floor(Math.random() * exercisePool.length);
+      const exercise = exercisePool[randomIndex];
+      selectedExercises.push({
+        ...exercise,
+        completed: false
+      });
+    }
+
+    return selectedExercises;
+  };
+
+  const handleExtendWorkout = (plan: WorkoutPlan) => {
+    setPlanToExtend(plan);
+    setShowExtendDialog(true);
+  };
+
+  const extendCompletedWorkout = async (additionalMinutes: number) => {
+    if (!planToExtend) return;
+
+    const additionalExercises = generateAdditionalExercises(additionalMinutes);
+    const updatedExercises = [...planToExtend.exercises, ...additionalExercises];
 
     try {
-      const updatedPlan = await updateWorkoutPlan(plan.id, {
+      const updatedPlan = await updateWorkoutPlan(planToExtend.id, {
         exercises: updatedExercises,
-        duration_minutes: plan.duration_minutes + 15,
-        status: 'in-progress' // Change status back to in-progress since we're extending
+        duration_minutes: planToExtend.duration_minutes + additionalMinutes,
+        status: 'in-progress'
       });
 
       if (updatedPlan) {
         setCurrentWorkout(updatedPlan);
         setActiveTab("active");
-        await logActivity('workout_created', `Extended completed workout: ${plan.name}`);
+        await logActivity('workout_created', `Extended completed workout: ${planToExtend.name} by ${additionalMinutes} minutes`);
         toast({
           title: "Workout Extended!",
-          description: "Added 2 more exercises and moved to active workouts!",
+          description: `Added ${additionalExercises.length} more exercises (${additionalMinutes} min) and moved to active workouts!`,
         });
       }
     } catch (error) {
@@ -247,6 +290,17 @@ const WorkoutPlan = () => {
         description: "Failed to extend workout. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setShowExtendDialog(false);
+      setPlanToExtend(null);
+      form.reset();
+    }
+  };
+
+  const onExtendSubmit = (data: { additionalMinutes: string }) => {
+    const minutes = parseInt(data.additionalMinutes);
+    if (minutes && minutes > 0) {
+      extendCompletedWorkout(minutes);
     }
   };
 
@@ -260,7 +314,6 @@ const WorkoutPlan = () => {
       return;
     }
 
-    // Check if there's already a scheduled plan for today
     if (checkExistingPlanForToday()) {
       toast({
         title: "Plan Already Exists",
@@ -272,7 +325,6 @@ const WorkoutPlan = () => {
 
     setIsGenerating(true);
     try {
-      // Simulate AI workout generation
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const workoutTypes = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'HIIT', 'Cardio Blast'];
@@ -407,7 +459,6 @@ const WorkoutPlan = () => {
   const completedPlans = workoutPlans.filter(plan => plan.status === 'completed');
 
   const handleUpgradeClick = () => {
-    // Dispatch custom event to navigate to subscription tab
     window.dispatchEvent(new CustomEvent('upgrade-to-pro'));
   };
 
@@ -530,7 +581,6 @@ const WorkoutPlan = () => {
               </Card>
             )}
 
-            {/* AI Insights Section */}
             {!hasAccess() ? (
               <LockedFeature
                 title="AI Insights & Analytics"
@@ -813,7 +863,7 @@ const WorkoutPlan = () => {
                       </span>
                     </div>
                     <Button 
-                      onClick={() => extendCompletedWorkout(plan)}
+                      onClick={() => handleExtendWorkout(plan)}
                       className="w-full bg-blue-600 hover:bg-blue-700"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -826,6 +876,54 @@ const WorkoutPlan = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Extend Workout Dialog */}
+      <Dialog open={showExtendDialog} onOpenChange={setShowExtendDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Extend Workout</DialogTitle>
+            <DialogDescription>
+              How many additional minutes would you like to add to your workout?
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onExtendSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="additionalMinutes"
+                rules={{
+                  required: "Please enter the number of minutes",
+                  min: { value: 1, message: "Must be at least 1 minute" },
+                  max: { value: 120, message: "Cannot exceed 120 minutes" }
+                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Minutes</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 15"
+                        min="1"
+                        max="120"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowExtendDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Extend Workout
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
