@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart } from "lucide-react";
+import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -184,6 +184,34 @@ const WorkoutPlan = () => {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const deleteWorkoutPlan = async (planId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('workout_plans')
+        .delete()
+        .eq('id', planId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setWorkoutPlans(prev => prev.filter(plan => plan.id !== planId));
+      
+      toast({
+        title: "Success",
+        description: "Workout plan deleted successfully!",
+      });
+    } catch (error) {
+      console.error('Error deleting workout plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete workout plan. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -551,7 +579,17 @@ const WorkoutPlan = () => {
                         <CardTitle className="text-lg">{plan.name}</CardTitle>
                         <CardDescription>{plan.description}</CardDescription>
                       </div>
-                      <Badge variant="secondary">{plan.difficulty_level}</Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="secondary">{plan.difficulty_level}</Badge>
+                        <Button
+                          onClick={() => deleteWorkoutPlan(plan.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
