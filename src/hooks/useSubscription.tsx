@@ -16,13 +16,17 @@ export const useSubscription = () => {
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      checkSubscriptionStatus();
-    } else {
-      setLoading(false);
-      setInitialCheckComplete(true);
-      setSubscriptionInfo({ subscribed: false });
-    }
+    const checkSubscription = async () => {
+      if (user) {
+        await checkSubscriptionStatus();
+      } else {
+        setLoading(false);
+        setInitialCheckComplete(true);
+        setSubscriptionInfo({ subscribed: false });
+      }
+    };
+
+    checkSubscription();
   }, [user]);
 
   const checkSubscriptionStatus = async () => {

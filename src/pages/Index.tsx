@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +22,7 @@ const Index = () => {
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
-    if (!initialCheckComplete) return;
+    if (!initialCheckComplete || !user) return;
     
     const urlParams = new URLSearchParams(window.location.search);
     const subscription = urlParams.get('subscription');
@@ -53,7 +52,7 @@ const Index = () => {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast, checkSubscriptionStatus, initialCheckComplete]);
+  }, [toast, checkSubscriptionStatus, initialCheckComplete, user]);
 
   // Listen for upgrade button clicks from child components
   useEffect(() => {
@@ -88,8 +87,8 @@ const Index = () => {
     { value: "subscription", label: "Pro", icon: Crown },
   ];
 
-  // Show loading state while checking subscription
-  if (loading || !initialCheckComplete) {
+  // Show loading state while checking authentication and subscription
+  if (!user || loading || !initialCheckComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
