@@ -15,9 +15,6 @@ interface Goal {
   id: string;
   title: string;
   description: string;
-  target_value: number;
-  current_value: number;
-  unit: string;
   target_date: string;
   achieved_date?: string;
   status: string;
@@ -30,11 +27,8 @@ const GoalManager = () => {
   const [loading, setLoading] = useState(true);
   const [newGoal, setNewGoal] = useState({
     title: "",
-    description: "",
-    target_value: "",
-    current_value: "",
-    unit: "",
-    target_date: ""
+    target_date: "",
+    description: ""
   });
 
   // Fetch goals from database
@@ -67,10 +61,10 @@ const GoalManager = () => {
   }, [user]);
 
   const handleAddGoal = async () => {
-    if (!user || !newGoal.title || !newGoal.target_value) {
+    if (!user || !newGoal.title.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in title and target value.",
+        description: "Please fill in the goal title.",
         variant: "destructive"
       });
       return;
@@ -83,9 +77,6 @@ const GoalManager = () => {
           user_id: user.id,
           title: newGoal.title,
           description: newGoal.description,
-          target_value: parseFloat(newGoal.target_value),
-          current_value: parseFloat(newGoal.current_value) || 0,
-          unit: newGoal.unit,
           target_date: newGoal.target_date || null,
           status: 'active'
         });
@@ -94,11 +85,8 @@ const GoalManager = () => {
 
       setNewGoal({
         title: "",
-        description: "",
-        target_value: "",
-        current_value: "",
-        unit: "",
-        target_date: ""
+        target_date: "",
+        description: ""
       });
 
       toast({
@@ -209,49 +197,15 @@ const GoalManager = () => {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Create New Goal</h3>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
                   <Label htmlFor="title">Goal Title *</Label>
                   <Input
                     id="title"
-                    placeholder="e.g., Lose 10 pounds"
+                    placeholder="e.g., Run a 5K marathon"
                     value={newGoal.title}
                     onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
                   />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor="current">Current</Label>
-                    <Input
-                      id="current"
-                      type="number"
-                      placeholder="0"
-                      value={newGoal.current_value}
-                      onChange={(e) => setNewGoal({...newGoal, current_value: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="target">Target *</Label>
-                    <Input
-                      id="target"
-                      type="number"
-                      placeholder="0"
-                      value={newGoal.target_value}
-                      onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Input
-                      id="unit"
-                      placeholder="lbs"
-                      value={newGoal.unit}
-                      onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
-                    />
-                  </div>
                 </div>
                 
                 <div>
@@ -297,7 +251,7 @@ const GoalManager = () => {
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
-                            <div>
+                            <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-1">
                                 <h4 className="font-medium">{goal.title}</h4>
                                 <Badge className={getStatusColor(goal.status)}>
@@ -306,9 +260,6 @@ const GoalManager = () => {
                                 {goal.status === 'achieved' && (
                                   <Trophy className="h-4 w-4 text-yellow-500" />
                                 )}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                <span>{goal.current_value || 0} / {goal.target_value} {goal.unit}</span>
                               </div>
                             </div>
                           </div>
@@ -339,7 +290,7 @@ const GoalManager = () => {
                                 onClick={() => handleAchieveGoal(goal.id)}
                               >
                                 <Trophy className="h-3 w-3 mr-1" />
-                                Mark Achieved
+                                Achieved
                               </Button>
                             )}
                             <Button 
