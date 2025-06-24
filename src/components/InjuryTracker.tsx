@@ -98,76 +98,80 @@ const InjuryTracker = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="bg-gradient-to-r from-red-600 to-orange-500 p-2 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-white" />
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
               <div>
-                <CardTitle>Injury Tracker</CardTitle>
-                <CardDescription>Monitor and manage your injuries to ensure safe workouts</CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Injury Tracker</CardTitle>
+                <CardDescription className="text-sm">Monitor and manage your injuries to ensure safe workouts</CardDescription>
               </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Add New Injury */}
+        <CardContent className="px-4 sm:px-6">
+          <div className="space-y-6">
+            {/* Mobile-First: Report New Injury Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Report New Injury</h3>
+              <h3 className="font-semibold text-base sm:text-lg">Report New Injury</h3>
               
-              <div className="space-y-2">
-                <Label>Body Part *</Label>
-                <Select value={newInjury.bodyPart} onValueChange={(value) => setNewInjury({...newInjury, bodyPart: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select body part" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bodyParts.map((part) => (
-                      <SelectItem key={part} value={part}>
-                        {part}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Body Part *</Label>
+                  <Select value={newInjury.bodyPart} onValueChange={(value) => setNewInjury({...newInjury, bodyPart: value})}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select body part" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bodyParts.map((part) => (
+                        <SelectItem key={part} value={part}>
+                          {part}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Severity *</Label>
+                  <Select value={newInjury.severity} onValueChange={(value) => setNewInjury({...newInjury, severity: value})}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select severity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {severityLevels.map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          {level.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               
               <div className="space-y-2">
-                <Label>Severity *</Label>
-                <Select value={newInjury.severity} onValueChange={(value) => setNewInjury({...newInjury, severity: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select severity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {severityLevels.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date" className="text-sm font-medium">Date</Label>
                 <Input
                   id="date"
                   type="date"
                   value={newInjury.date}
                   onChange={(e) => setNewInjury({...newInjury, date: e.target.value})}
+                  className="h-10"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-sm font-medium">Description</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe the injury and any relevant details"
                   value={newInjury.description}
                   onChange={(e) => setNewInjury({...newInjury, description: e.target.value})}
+                  className="min-h-[80px] resize-none"
                 />
               </div>
               
@@ -177,58 +181,60 @@ const InjuryTracker = () => {
               </Button>
             </div>
 
-            {/* Current Injuries */}
+            {/* Current Injuries Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Current Injuries</h3>
+              <h3 className="font-semibold text-base sm:text-lg">Current Injuries</h3>
               
               {injuries.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No injuries recorded. Great job staying safe!</p>
+                  <p className="text-sm sm:text-base">No injuries recorded. Great job staying safe!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {injuries.map((injury) => (
                     <Card key={injury.id} className="border-l-4 border-l-red-500">
-                      <CardContent className="pt-4">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4 text-gray-500" />
-                              <span className="font-medium">{injury.bodyPart}</span>
-                              <Badge className={getSeverityColor(injury.severity)}>
-                                {injury.severity}
-                              </Badge>
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1 min-w-0">
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                <span className="font-medium text-sm sm:text-base truncate">{injury.bodyPart}</span>
+                                <Badge className={`${getSeverityColor(injury.severity)} text-xs flex-shrink-0`}>
+                                  {injury.severity}
+                                </Badge>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+                                <Calendar className="h-3 w-3 flex-shrink-0" />
+                                <span>{new Date(injury.date).toLocaleDateString()}</span>
+                              </div>
+                              
+                              {injury.description && (
+                                <p className="text-xs sm:text-sm text-gray-700 break-words">{injury.description}</p>
+                              )}
                             </div>
                             
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Calendar className="h-3 w-3" />
-                              <span>{new Date(injury.date).toLocaleDateString()}</span>
-                            </div>
-                            
-                            {injury.description && (
-                              <p className="text-sm text-gray-700">{injury.description}</p>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-col space-y-2">
-                            <Badge 
-                              variant={injury.status === "active" ? "destructive" : "secondary"}
-                              className="text-xs"
-                            >
-                              {injury.status}
-                            </Badge>
-                            
-                            {injury.status === "active" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUpdateStatus(injury.id, "recovered")}
-                                className="text-xs"
+                            <div className="flex flex-col space-y-2 ml-3 flex-shrink-0">
+                              <Badge 
+                                variant={injury.status === "active" ? "destructive" : "secondary"}
+                                className="text-xs whitespace-nowrap"
                               >
-                                Mark Recovered
-                              </Button>
-                            )}
+                                {injury.status}
+                              </Badge>
+                              
+                              {injury.status === "active" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUpdateStatus(injury.id, "recovered")}
+                                  className="text-xs px-2 py-1 h-auto whitespace-nowrap"
+                                >
+                                  Mark Recovered
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -241,21 +247,21 @@ const InjuryTracker = () => {
         </CardContent>
       </Card>
 
-      {/* Workout Adjustments Info */}
+      {/* Workout Adjustments Info - Mobile Optimized */}
       <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
-        <CardHeader>
-          <CardTitle className="text-yellow-800">Workout Adjustments</CardTitle>
-          <CardDescription className="text-yellow-700">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-yellow-800 text-base sm:text-lg">Workout Adjustments</CardTitle>
+          <CardDescription className="text-yellow-700 text-sm">
             How your injuries affect your workout recommendations
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-yellow-200">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-800">Lower Back (Mild)</p>
-                <p className="text-sm text-yellow-700">Avoiding: Heavy deadlifts, squats. Modified: Core exercises with reduced intensity.</p>
+            <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-yellow-200">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-yellow-800 text-sm sm:text-base">Lower Back (Mild)</p>
+                <p className="text-xs sm:text-sm text-yellow-700 break-words">Avoiding: Heavy deadlifts, squats. Modified: Core exercises with reduced intensity.</p>
               </div>
             </div>
           </div>
