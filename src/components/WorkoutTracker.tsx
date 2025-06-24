@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -212,7 +211,7 @@ const WorkoutTracker = () => {
       setEditingWorkout(null);
       setEditData(null);
 
-      await logActivity('workout_updated', `Updated workout: ${editData.name}`);
+      await logActivity('workout_completed', `Updated workout: ${editData.name}`);
 
       toast({
         title: "Workout Updated",
@@ -249,7 +248,7 @@ const WorkoutTracker = () => {
       if (error) throw error;
 
       if (workout) {
-        await logActivity('workout_deleted', `Deleted workout: ${workout.name}`);
+        await logActivity('workout_completed', `Deleted workout: ${workout.name}`);
       }
 
       toast({
