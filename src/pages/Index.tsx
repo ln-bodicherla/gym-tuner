@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, LogOut, User, Heart, Target, AlertTriangle, Crown } from "lucide-react";
+import { TrendingUp, LogOut, User, Heart, Target, AlertTriangle, Crown, Star } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
@@ -10,15 +11,17 @@ import RecentActivity from "@/components/RecentActivity";
 import Insights from "@/components/Insights";
 import QuickStats from "@/components/QuickStats";
 import SubscriptionManager from "@/components/SubscriptionManager";
+import SubscriptionCard from "@/components/SubscriptionCard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user, loading: authLoading } = useAuth();
-  const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete } = useSubscription();
+  const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete, hasAccess } = useSubscription();
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
@@ -64,6 +67,39 @@ const Index = () => {
       window.removeEventListener('upgrade-to-pro' as any, handleUpgradeClick);
     };
   }, []);
+
+  const handleUpgrade = async () => {
+    setActiveTab("subscription");
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { 
+          priceId: 'price_1QVgTzJNcmPzuSeUcwkXJrVr',
+          userId: user?.id 
+        }
+      });
+
+      if (error) {
+        console.error('Checkout error:', error);
+        toast({
+          title: "Subscription Error",
+          description: error.message || "Failed to create checkout session. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      toast({
+        title: "Subscription Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -122,9 +158,7 @@ const Index = () => {
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
                   <h1 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Gym Tuner</h1>
-                  {subscriptionInfo?.subscribed && (
-                    <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
-                  )}
+                  <SubscriptionCard hasAccess={hasAccess()} onUpgrade={handleUpgrade} compact={true} />
                 </div>
                 <p className="text-xs sm:text-sm text-gray-600 hidden sm:block truncate">
                   Welcome back, {getUserDisplayName()}
@@ -173,6 +207,49 @@ const Index = () => {
           </div>
 
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
+            {/* Subscription Status Card for Free Users */}
+            {!hasAccess() && (
+              <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-2 rounded-lg">
+                        <Crown className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Upgrade to Gym Tuner Pro</CardTitle>
+                        <CardDescription>
+                          Unlock unlimited AI workouts and premium features
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-orange-600">$9.99</div>
+                      <div className="text-sm text-gray-600">/month</div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                      <div className="flex items-center space-x-1">
+                        <Star className="h-4 w-4 text-yellow-500" />
+                        <span>Unlimited AI Workouts</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <TrendingUp className="h-4 w-4 text-blue-500" />
+                        <span>Advanced Analytics</span>
+                      </div>
+                    </div>
+                    <Button onClick={handleUpgrade} className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
+                      <Crown className="h-4 w-4 mr-2" />
+                      Upgrade Now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <QuickStats />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <RecentActivity />
