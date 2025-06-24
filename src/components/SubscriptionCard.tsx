@@ -44,11 +44,14 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
         </div>
         <CardTitle className="text-xl">Gym Tuner Pro</CardTitle>
         <CardDescription>
-          Unlock all premium features with one subscription
+          Start your 7-day free trial, then $9.99/month
         </CardDescription>
         <div className="text-center space-y-1">
+          <div className="text-sm text-blue-600 font-semibold bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+            7-Day Free Trial
+          </div>
           <div className="text-3xl font-bold text-gray-900">$9.99</div>
-          <div className="text-gray-600">/month</div>
+          <div className="text-gray-600">/month after trial</div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -81,8 +84,12 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
           size={compact ? "sm" : "lg"}
         >
           <Crown className="h-4 w-4 mr-2" />
-          Upgrade to Pro
+          Start Free Trial
         </Button>
+        
+        <p className="text-xs text-gray-500 text-center">
+          Cancel anytime during your trial period
+        </p>
       </CardContent>
     </Card>
   );
