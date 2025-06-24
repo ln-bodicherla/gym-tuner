@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,13 +9,17 @@ import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
 import WorkoutPlan from "@/components/WorkoutPlan";
+import RecentActivity from "@/components/RecentActivity";
+import Insights from "@/components/Insights";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivity } from "@/contexts/ActivityContext";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
+  const { logActivity } = useActivity();
 
   // Mock data for demonstration
   const userStats = {
@@ -26,7 +29,13 @@ const Index = () => {
     currentStreak: 5
   };
 
-  const handleGeneratePlan = () => {
+  const handleGeneratePlan = async () => {
+    await logActivity(
+      'plan_generated',
+      'New workout plan generated',
+      { generated_from: 'dashboard' }
+    );
+    
     toast({
       title: "Workout Plan Generated!",
       description: "A personalized plan has been created based on your profile and current status.",
@@ -164,42 +173,11 @@ const Index = () => {
               </Card>
             </div>
 
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader className="px-4 sm:px-6">
-                <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
-                <CardDescription>Your latest workouts and achievements</CardDescription>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6">
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center justify-between p-3 sm:p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
-                    <div className="flex items-center space-x-3 min-w-0 flex-1">
-                      <div className="bg-green-500 p-2 rounded-full flex-shrink-0">
-                        <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">Upper Body Strength</p>
-                        <p className="text-xs sm:text-sm text-gray-600">Completed • 45 minutes</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs flex-shrink-0 ml-2">Yesterday</Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 sm:p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                    <div className="flex items-center space-x-3 min-w-0 flex-1">
-                      <div className="bg-blue-500 p-2 rounded-full flex-shrink-0">
-                        <Target className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">Goal Updated</p>
-                        <p className="text-xs sm:text-sm text-gray-600">Weight Loss: 10 lbs in 3 months</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs flex-shrink-0 ml-2">2 days ago</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Recent Activity and Insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <RecentActivity />
+              <Insights />
+            </div>
           </TabsContent>
 
           <TabsContent value="profile">

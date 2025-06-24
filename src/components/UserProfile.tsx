@@ -10,11 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { User, Clock, Target, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivity } from "@/contexts/ActivityContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const UserProfile = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { logActivity } = useActivity();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     full_name: "",
@@ -104,6 +106,15 @@ const UserProfile = () => {
         });
         return;
       }
+
+      // Log the profile update activity
+      await logActivity(
+        'profile_update',
+        'Profile information updated',
+        { 
+          updated_fields: Object.keys(profileData).filter(key => key !== 'id' && key !== 'updated_at')
+        }
+      );
 
       toast({
         title: "Profile Updated!",
