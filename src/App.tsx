@@ -8,6 +8,7 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { ActivityProvider } from '@/contexts/ActivityContext';
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Activity from "./pages/Activity";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -34,6 +35,11 @@ function App() {
                 <Route path="/" element={
                   <ProtectedRoute>
                     <Index />
+                  </ProtectedRoute>
+                } />
+                <Route path="/activity" element={
+                  <ProtectedRoute>
+                    <Activity />
                   </ProtectedRoute>
                 } />
                 <Route path="*" element={<NotFound />} />

@@ -1,9 +1,10 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Target, User, Heart, AlertTriangle, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, Target, User, Heart, AlertTriangle, Plus, ArrowRight } from "lucide-react";
 import { useActivity } from "@/contexts/ActivityContext";
 import { ActivityLog } from "@/hooks/useActivityLogger";
+import { useNavigate } from "react-router-dom";
 
 const getActivityIcon = (type: ActivityLog['activity_type']) => {
   switch (type) {
@@ -70,6 +71,10 @@ const formatTimeAgo = (dateString: string) => {
 
 const RecentActivity = () => {
   const { activities, loading } = useActivity();
+  const navigate = useNavigate();
+
+  // Limit to 4 activities for dashboard
+  const limitedActivities = activities.slice(0, 4);
 
   if (loading) {
     return (
@@ -90,11 +95,26 @@ const RecentActivity = () => {
   return (
     <Card>
       <CardHeader className="px-4 sm:px-6">
-        <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
-        <CardDescription>Your latest actions and achievements</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
+            <CardDescription>Your latest actions and achievements</CardDescription>
+          </div>
+          {activities.length > 4 && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/activity')}
+              className="flex items-center gap-1 text-sm"
+            >
+              View All
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
-        {activities.length === 0 ? (
+        {limitedActivities.length === 0 ? (
           <div className="text-center py-8">
             <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500">No recent activity yet</p>
@@ -102,7 +122,7 @@ const RecentActivity = () => {
           </div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
-            {activities.map((activity) => (
+            {limitedActivities.map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors"
@@ -127,6 +147,18 @@ const RecentActivity = () => {
                 </Badge>
               </div>
             ))}
+            {activities.length > 4 && (
+              <div className="text-center pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/activity')}
+                  className="w-full"
+                >
+                  View All Activities ({activities.length})
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
