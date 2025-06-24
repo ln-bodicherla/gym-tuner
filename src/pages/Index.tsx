@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Target, Clock, AlertTriangle, Plus, TrendingUp, LogOut, User, Heart } from "lucide-react";
+import { Activity, Target, Clock, AlertTriangle, TrendingUp, LogOut, User, Heart } from "lucide-react";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
@@ -28,19 +28,6 @@ const Index = () => {
     completedWorkouts: 2,
     activeInjuries: 1,
     currentStreak: 5
-  };
-
-  const handleGeneratePlan = async () => {
-    await logActivity(
-      'plan_generated',
-      'New workout plan generated',
-      { generated_from: 'dashboard' }
-    );
-    
-    toast({
-      title: "Workout Plan Generated!",
-      description: "A personalized plan has been created based on your profile and current status.",
-    });
   };
 
   const handleSignOut = async () => {
@@ -70,9 +57,11 @@ const Index = () => {
         <div className="px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-blue-600 to-orange-500 p-2 rounded-lg">
-                <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </div>
+              <img 
+                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" 
+                alt="Gym Tuner Logo" 
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
+              />
               <div>
                 <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Gym Tuner</h1>
                 <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, {getUserDisplayName()}</p>
@@ -80,16 +69,6 @@ const Index = () => {
             </div>
             
             <div className="flex items-center space-x-2">
-              {/* Mobile Generate Plan Button */}
-              <Button 
-                onClick={handleGeneratePlan} 
-                className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-3 py-2 sm:px-4 sm:py-2"
-                size="sm"
-              >
-                <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Generate Plan</span>
-              </Button>
-              
               {/* Sign Out Button */}
               <Button 
                 onClick={handleSignOut}
