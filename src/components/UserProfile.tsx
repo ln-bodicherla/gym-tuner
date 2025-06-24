@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,28 +9,114 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { User, Clock, Target, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const UserProfile = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    age: "28",
-    weight: "175",
-    height: "5'10\"",
-    fitnessLevel: "intermediate",
-    availableTime: "60",
-    maxWorkoutTime: "90", // New field for maximum workout time
-    preferences: "Strength training, Cardio",
-    limitations: "Lower back sensitivity"
+    full_name: "",
+    age: "",
+    weight: "",
+    height: "",
+    fitness_level: "beginner",
+    preferred_time: "",
+    max_workout_time: "",
+    preferences: "",
+    limitations: ""
   });
 
-  const handleSaveProfile = () => {
-    // Save to localStorage for persistence
-    localStorage.setItem('userProfile', JSON.stringify(profile));
-    toast({
-      title: "Profile Updated!",
-      description: "Your profile has been saved successfully.",
-    });
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      if (data) {
+        setProfile({
+          full_name: data.full_name || user?.user_metadata?.full_name || "",
+          age: data.age?.toString() || "",
+          weight: data.weight?.toString() || "",
+          height: data.height || "",
+          fitness_level: data.fitness_level || "beginner",
+          preferred_time: data.preferred_time?.toString() || "",
+          max_workout_time: data.max_workout_time?.toString() || "",
+          preferences: data.preferences || "",
+          limitations: data.limitations || ""
+        });
+      } else {
+        // Set default values from user metadata if profile doesn't exist
+        setProfile(prev => ({
+          ...prev,
+          full_name: user?.user_metadata?.full_name || ""
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      const profileData = {
+        id: user.id,
+        full_name: profile.full_name,
+        age: profile.age ? parseInt(profile.age) : null,
+        weight: profile.weight ? parseFloat(profile.weight) : null,
+        height: profile.height,
+        fitness_level: profile.fitness_level,
+        preferred_time: profile.preferred_time ? parseInt(profile.preferred_time) : null,
+        max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
+        preferences: profile.preferences,
+        limitations: profile.limitations,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData);
+
+      if (error) {
+        console.error('Error saving profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save profile. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Profile Updated!",
+        description: "Your profile has been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const fitnessLevels = [
@@ -39,6 +125,14 @@ const UserProfile = () => {
     { value: "advanced", label: "Advanced" },
     { value: "expert", label: "Expert" }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -60,8 +154,8 @@ const UserProfile = () => {
               <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
               <Input
                 id="name"
-                value={profile.name}
-                onChange={(e) => setProfile({...profile, name: e.target.value})}
+                value={profile.full_name}
+                onChange={(e) => setProfile({...profile, full_name: e.target.value})}
                 className="h-10 sm:h-10"
               />
             </div>
@@ -117,7 +211,7 @@ const UserProfile = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Fitness Level</Label>
-              <Select value={profile.fitnessLevel} onValueChange={(value) => setProfile({...profile, fitnessLevel: value})}>
+              <Select value={profile.fitness_level} onValueChange={(value) => setProfile({...profile, fitness_level: value})}>
                 <SelectTrigger className="h-10 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
@@ -136,8 +230,8 @@ const UserProfile = () => {
               <Input
                 id="time"
                 type="number"
-                value={profile.availableTime}
-                onChange={(e) => setProfile({...profile, availableTime: e.target.value})}
+                value={profile.preferred_time}
+                onChange={(e) => setProfile({...profile, preferred_time: e.target.value})}
                 className="h-10 sm:h-10"
                 placeholder="e.g., 45"
               />
@@ -148,8 +242,8 @@ const UserProfile = () => {
               <Input
                 id="maxTime"
                 type="number"
-                value={profile.maxWorkoutTime}
-                onChange={(e) => setProfile({...profile, maxWorkoutTime: e.target.value})}
+                value={profile.max_workout_time}
+                onChange={(e) => setProfile({...profile, max_workout_time: e.target.value})}
                 className="h-10 sm:h-10"
                 placeholder="e.g., 90"
               />
@@ -195,22 +289,28 @@ const UserProfile = () => {
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           <div className="flex flex-wrap gap-2 sm:gap-3">
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 px-2 py-1">
-              <Clock className="h-3 w-3 mr-1" />
-              {profile.availableTime} min/day
-            </Badge>
-            <Badge variant="secondary" className="bg-orange-100 text-orange-800 px-2 py-1">
-              <Clock className="h-3 w-3 mr-1" />
-              Max: {profile.maxWorkoutTime} min
-            </Badge>
+            {profile.preferred_time && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 px-2 py-1">
+                <Clock className="h-3 w-3 mr-1" />
+                {profile.preferred_time} min/day
+              </Badge>
+            )}
+            {profile.max_workout_time && (
+              <Badge variant="secondary" className="bg-orange-100 text-orange-800 px-2 py-1">
+                <Clock className="h-3 w-3 mr-1" />
+                Max: {profile.max_workout_time} min
+              </Badge>
+            )}
             <Badge variant="secondary" className="bg-green-100 text-green-800 px-2 py-1">
               <Activity className="h-3 w-3 mr-1" />
-              {profile.fitnessLevel}
+              {profile.fitness_level}
             </Badge>
-            <Badge variant="secondary" className="bg-purple-100 text-purple-800 px-2 py-1">
-              <User className="h-3 w-3 mr-1" />
-              {profile.age} years old
-            </Badge>
+            {profile.age && (
+              <Badge variant="secondary" className="bg-purple-100 text-purple-800 px-2 py-1">
+                <User className="h-3 w-3 mr-1" />
+                {profile.age} years old
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Card>

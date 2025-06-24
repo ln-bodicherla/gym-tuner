@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Target, Clock, AlertTriangle, Plus, TrendingUp, LogOut } from "lucide-react";
+import { Activity, Target, Clock, AlertTriangle, Plus, TrendingUp, LogOut, User, Heart } from "lucide-react";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
@@ -15,7 +15,6 @@ import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { toast } = useToast();
   const { signOut, user } = useAuth();
 
@@ -48,16 +47,16 @@ const Index = () => {
 
   const tabItems = [
     { value: "dashboard", label: "Dashboard", icon: TrendingUp },
-    { value: "profile", label: "Profile", icon: Target },
+    { value: "profile", label: "Profile", icon: User },
     { value: "injuries", label: "Injuries", icon: AlertTriangle },
     { value: "goals", label: "Goals", icon: Target },
-    { value: "workouts", label: "Workouts", icon: Clock },
+    { value: "workouts", label: "Workouts", icon: Heart },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Mobile-First Header */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-50">
+      <div className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -96,10 +95,10 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
+      <div className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto pb-20 md:pb-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          {/* Mobile-Optimized Tab Navigation */}
-          <div className="bg-white rounded-lg shadow-sm p-1 overflow-x-auto">
+          {/* Desktop Tab Navigation - Hidden on mobile */}
+          <div className="hidden md:block bg-white rounded-lg shadow-sm p-1">
             <TabsList className="grid grid-cols-5 w-full bg-transparent gap-1">
               {tabItems.map((item) => {
                 const Icon = item.icon;
@@ -107,10 +106,10 @@ const Index = () => {
                   <TabsTrigger 
                     key={item.value}
                     value={item.value} 
-                    className="flex flex-col items-center space-y-1 px-2 py-3 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-orange-500 data-[state=active]:text-white rounded-md min-w-0"
+                    className="flex items-center space-x-2 px-4 py-3 text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-orange-500 data-[state=active]:text-white rounded-md"
                   >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span className="truncate w-full text-center">{item.label}</span>
+                    <Icon className="h-5 w-5" />
+                    <span>{item.label}</span>
                   </TabsTrigger>
                 );
               })}
@@ -118,7 +117,7 @@ const Index = () => {
           </div>
 
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
-            {/* Mobile-Optimized Quick Stats */}
+            {/* Quick Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
               <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
@@ -165,7 +164,7 @@ const Index = () => {
               </Card>
             </div>
 
-            {/* Mobile-Optimized Recent Activity */}
+            {/* Recent Activity */}
             <Card>
               <CardHeader className="px-4 sm:px-6">
                 <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
@@ -219,6 +218,30 @@ const Index = () => {
             <WorkoutPlan />
           </TabsContent>
         </Tabs>
+      </div>
+
+      {/* Mobile Bottom Navigation - Only visible on mobile */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+        <div className="flex justify-around py-2">
+          {tabItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.value;
+            return (
+              <button
+                key={item.value}
+                onClick={() => setActiveTab(item.value)}
+                className={`flex flex-col items-center justify-center py-2 px-3 transition-colors duration-200 ${
+                  isActive 
+                    ? 'text-blue-600' 
+                    : 'text-gray-500 hover:text-blue-600'
+                }`}
+              >
+                <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : ''}`} />
+                <span className="text-xs mt-1 font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
