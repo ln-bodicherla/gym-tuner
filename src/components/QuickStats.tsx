@@ -20,7 +20,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   });
   const [profile, setProfile] = useState({
     max_workout_time: null,
-    preferred_time: null,
+    min_workout_time: null,
     age: null,
     weight: null,
     height: null,
@@ -39,7 +39,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     try {
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('max_workout_time, preferred_time, age, weight, height, fitness_level')
+        .select('max_workout_time, min_workout_time, age, weight, height, fitness_level')
         .eq('id', user?.id)
         .single();
 
@@ -205,9 +205,9 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-medium text-teal-600">Preferred Time</p>
+              <p className="text-xs sm:text-sm font-medium text-teal-600">Min Gym Time</p>
               <p className="text-lg sm:text-2xl font-bold text-teal-900">
-                {profile.preferred_time ? `${profile.preferred_time}m` : 'Not set'}
+                {profile.min_workout_time ? `${profile.min_workout_time}m` : 'Not set'}
               </p>
             </div>
             <div className="bg-teal-500 p-2 sm:p-3 rounded-full">

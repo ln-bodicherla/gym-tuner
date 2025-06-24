@@ -28,11 +28,9 @@ const UserProfile = () => {
     weight: "",
     height: "",
     fitness_level: "",
-    preferred_time: "",
     max_workout_time: "",
     min_workout_time: "",
     weekly_goal: "",
-    experience_years: "",
     preferred_workout_types: "",
     availability: "",
     preferences: "",
@@ -60,11 +58,9 @@ const UserProfile = () => {
           weight: profileData.weight?.toString() || "",
           height: profileData.height || "",
           fitness_level: profileData.fitness_level || "",
-          preferred_time: profileData.preferred_time?.toString() || "",
           max_workout_time: profileData.max_workout_time?.toString() || "",
           min_workout_time: profileData.min_workout_time?.toString() || "",
           weekly_goal: profileData.weekly_goal?.toString() || "",
-          experience_years: profileData.experience_years?.toString() || "",
           preferred_workout_types: profileData.preferred_workout_types || "",
           availability: profileData.availability || "",
           preferences: profileData.preferences || "",
@@ -87,11 +83,9 @@ const UserProfile = () => {
           weight: profile.weight ? parseFloat(profile.weight) : null,
           height: profile.height,
           fitness_level: profile.fitness_level,
-          preferred_time: profile.preferred_time ? parseInt(profile.preferred_time) : null,
           max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
           min_workout_time: profile.min_workout_time ? parseInt(profile.min_workout_time) : null,
           weekly_goal: profile.weekly_goal ? parseInt(profile.weekly_goal) : null,
-          experience_years: profile.experience_years ? parseInt(profile.experience_years) : null,
           preferred_workout_types: profile.preferred_workout_types,
           availability: profile.availability,
           preferences: profile.preferences,
@@ -238,7 +232,7 @@ const UserProfile = () => {
               {isEditing ? (
                 <Input
                   id="height"
-                  placeholder="5'10&quot; or 178cm"
+                  placeholder="5'10\" or 178cm"
                   value={profile.height}
                   onChange={(e) => setProfile({...profile, height: e.target.value})}
                 />
@@ -269,20 +263,6 @@ const UserProfile = () => {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="preferred_time">Preferred Workout Time (min)</Label>
-              {isEditing ? (
-                <Input
-                  id="preferred_time"
-                  type="number"
-                  placeholder="45"
-                  value={profile.preferred_time}
-                  onChange={(e) => setProfile({...profile, preferred_time: e.target.value})}
-                />
-              ) : (
-                <p className="text-sm text-gray-600">{profile.preferred_time ? `${profile.preferred_time} minutes` : 'Not set'}</p>
-              )}
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="max_workout_time">Maximum Workout Time (min)</Label>
               {isEditing ? (
                 <Input
@@ -296,10 +276,6 @@ const UserProfile = () => {
                 <p className="text-sm text-gray-600">{profile.max_workout_time ? `${profile.max_workout_time} minutes` : 'Not set'}</p>
               )}
             </div>
-          </div>
-
-          {/* Additional Fitness Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="min_workout_time">Minimum Workout Time (min)</Label>
               {isEditing ? (
@@ -314,6 +290,10 @@ const UserProfile = () => {
                 <p className="text-sm text-gray-600">{profile.min_workout_time ? `${profile.min_workout_time} minutes` : 'Not set'}</p>
               )}
             </div>
+          </div>
+
+          {/* Weekly Goal */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="weekly_goal">Weekly Workout Goal</Label>
               {isEditing ? (
@@ -326,20 +306,6 @@ const UserProfile = () => {
                 />
               ) : (
                 <p className="text-sm text-gray-600">{profile.weekly_goal ? `${profile.weekly_goal} times per week` : 'Not set'}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="experience_years">Years of Experience</Label>
-              {isEditing ? (
-                <Input
-                  id="experience_years"
-                  type="number"
-                  placeholder="2"
-                  value={profile.experience_years}
-                  onChange={(e) => setProfile({...profile, experience_years: e.target.value})}
-                />
-              ) : (
-                <p className="text-sm text-gray-600">{profile.experience_years ? `${profile.experience_years} years` : 'Not set'}</p>
               )}
             </div>
           </div>
