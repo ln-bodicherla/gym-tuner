@@ -39,6 +39,13 @@ interface WorkoutPlan {
   created_at: string;
 }
 
+interface UserData {
+  profile: any;
+  injuries: any[];
+  goals: any[];
+  workouts: any[];
+}
+
 const WorkoutPlan = () => {
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [activeTab, setActiveTab] = useState("generate");
@@ -47,6 +54,12 @@ const WorkoutPlan = () => {
   const [loading, setLoading] = useState(true);
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [planToExtend, setPlanToExtend] = useState<WorkoutPlan | null>(null);
+  const [userData, setUserData] = useState<UserData>({
+    profile: null,
+    injuries: [],
+    goals: [],
+    workouts: []
+  });
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -63,8 +76,64 @@ const WorkoutPlan = () => {
   useEffect(() => {
     if (user) {
       loadWorkoutPlans();
+      loadUserData();
     }
   }, [user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+    
+    try {
+      // Load profile data
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      // Load injuries
+      const { data: injuriesData } = await supabase
+        .from('injuries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Load goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Load recent workouts (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: workoutsData } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('workout_date', thirtyDaysAgo.toISOString().split('T')[0])
+        .order('workout_date', { ascending: false });
+
+      setUserData({
+        profile: profileData,
+        injuries: injuriesData || [],
+        goals: goalsData || [],
+        workouts: workoutsData || []
+      });
+
+      console.log('Loaded user data for workout generation:', {
+        profile: profileData,
+        injuries: injuriesData?.length || 0,
+        goals: goalsData?.length || 0,
+        workouts: workoutsData?.length || 0
+      });
+
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
 
   const normalizeWorkoutPlanData = (data: any): WorkoutPlan => {
     return {
@@ -108,6 +177,124 @@ const WorkoutPlan = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateIntelligentWorkout = () => {
+    const { profile, injuries, goals, workouts } = userData;
+    
+    // Determine difficulty level
+    let difficultyLevel = 'beginner';
+    if (profile?.fitness_level) {
+      difficultyLevel = profile.fitness_level;
+    }
+
+    // Determine duration based on profile preferences and goals
+    let duration = 45; // default
+    if (profile?.max_workout_time) {
+      duration = Math.min(profile.max_workout_time, 90);
+    }
+    if (profile?.min_workout_time) {
+      duration = Math.max(duration, profile.min_workout_time);
+    }
+
+    // Check for active injuries to avoid problematic exercises
+    const activeInjuries = injuries.filter(injury => injury.status === 'active');
+    const hasKneeInjury = activeInjuries.some(injury => 
+      injury.name.toLowerCase().includes('knee') || 
+      injury.notes?.toLowerCase().includes('knee')
+    );
+    const hasBackInjury = activeInjuries.some(injury => 
+      injury.name.toLowerCase().includes('back') || 
+      injury.notes?.toLowerCase().includes('back')
+    );
+    const hasShoulderInjury = activeInjuries.some(injury => 
+      injury.name.toLowerCase().includes('shoulder') || 
+      injury.notes?.toLowerCase().includes('shoulder')
+    );
+
+    // Analyze recent workout patterns
+    const recentWorkoutTypes = workouts.map(w => w.name.toLowerCase());
+    const hasRecentCardio = recentWorkoutTypes.some(name => 
+      name.includes('cardio') || name.includes('running') || name.includes('hiit')
+    );
+    const hasRecentStrength = recentWorkoutTypes.some(name => 
+      name.includes('strength') || name.includes('push') || name.includes('pull') || name.includes('leg')
+    );
+
+    // Generate workout based on analysis
+    const workoutTypes = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'HIIT', 'Cardio Blast', 'Core Focus', 'Flexibility & Mobility'];
+    let selectedType = workoutTypes[Math.floor(Math.random() * workoutTypes.length)];
+
+    // Adjust based on recent workouts
+    if (hasRecentCardio && !hasRecentStrength) {
+      selectedType = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body'][Math.floor(Math.random() * 4)];
+    } else if (hasRecentStrength && !hasRecentCardio) {
+      selectedType = ['HIIT', 'Cardio Blast'][Math.floor(Math.random() * 2)];
+    }
+
+    // Generate exercises based on workout type and constraints
+    let exercises: Exercise[] = [];
+
+    if (selectedType === 'Push Day' && !hasShoulderInjury) {
+      exercises = [
+        { name: 'Push-ups', sets: difficultyLevel === 'beginner' ? 2 : 3, reps: '8-12', rest: '60s', completed: false },
+        { name: 'Shoulder Press', sets: 3, reps: '10-12', rest: '60s', completed: false },
+        { name: 'Chest Press', sets: 3, reps: '10-15', rest: '90s', completed: false },
+        { name: 'Tricep Dips', sets: 2, reps: '8-10', rest: '45s', completed: false },
+      ];
+    } else if (selectedType === 'Pull Day' && !hasBackInjury) {
+      exercises = [
+        { name: 'Pull-ups/Assisted Pull-ups', sets: 3, reps: '5-8', rest: '90s', completed: false },
+        { name: 'Rows', sets: 3, reps: '12-15', rest: '60s', completed: false },
+        { name: 'Lat Pulldowns', sets: 3, reps: '10-12', rest: '60s', completed: false },
+        { name: 'Bicep Curls', sets: 2, reps: '12-15', rest: '45s', completed: false },
+      ];
+    } else if (selectedType === 'Leg Day' && !hasKneeInjury) {
+      exercises = [
+        { name: 'Squats', sets: 3, reps: '12-15', rest: '90s', completed: false },
+        { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '60s', completed: false },
+        { name: 'Calf Raises', sets: 3, reps: '15-20', rest: '30s', completed: false },
+        { name: 'Glute Bridges', sets: 3, reps: '15-20', rest: '45s', completed: false },
+      ];
+    } else if (selectedType === 'HIIT') {
+      exercises = [
+        { name: 'Burpees', sets: 3, reps: '30s work, 30s rest', rest: '60s', completed: false },
+        { name: 'Mountain Climbers', sets: 3, reps: '30s work, 30s rest', rest: '60s', completed: false },
+        { name: 'Jumping Jacks', sets: 3, reps: '45s work, 15s rest', rest: '60s', completed: false },
+        { name: 'High Knees', sets: 2, reps: '30s work, 30s rest', rest: '45s', completed: false },
+      ];
+    } else {
+      // Safe default workout for any injury constraints
+      exercises = [
+        { name: 'Wall Push-ups', sets: 2, reps: '10-12', rest: '60s', completed: false },
+        { name: 'Seated Leg Extensions', sets: 2, reps: '12-15', rest: '60s', completed: false },
+        { name: 'Arm Circles', sets: 2, reps: '10 each direction', rest: '30s', completed: false },
+        { name: 'Gentle Stretching', sets: 1, reps: '5 minutes', rest: '0s', completed: false },
+      ];
+      selectedType = 'Adaptive Workout';
+    }
+
+    // Generate description based on user data
+    let description = `AI-generated ${selectedType} workout`;
+    if (profile?.fitness_level) {
+      description += ` tailored for ${profile.fitness_level} level`;
+    }
+    if (activeInjuries.length > 0) {
+      description += ` with modifications for current injuries`;
+    }
+    if (goals.length > 0) {
+      description += ` aligned with your fitness goals`;
+    }
+
+    return {
+      name: selectedType,
+      description,
+      exercises,
+      duration_minutes: duration,
+      difficulty_level: difficultyLevel,
+      status: 'scheduled' as const,
+      scheduled_date: new Date().toISOString().split('T')[0],
+    };
   };
 
   const checkExistingPlanForToday = () => {
@@ -240,7 +427,6 @@ const WorkoutPlan = () => {
       { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '45s' },
     ];
 
-    // Roughly estimate 1 exercise per 7-8 minutes
     const exerciseCount = Math.max(1, Math.floor(additionalMinutes / 7));
     const selectedExercises: Exercise[] = [];
 
@@ -325,31 +511,26 @@ const WorkoutPlan = () => {
 
     setIsGenerating(true);
     try {
+      // Simulate AI processing time
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const workoutTypes = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'HIIT', 'Cardio Blast'];
-      const workoutType = workoutTypes[Math.floor(Math.random() * workoutTypes.length)];
+      // Generate intelligent workout based on all user data
+      const workoutPlan = generateIntelligentWorkout();
       
-      const exercises: Exercise[] = [
-        { name: 'Push-ups', sets: 3, reps: '12-15', rest: '60s', completed: false },
-        { name: 'Squats', sets: 3, reps: '15-20', rest: '60s', completed: false },
-        { name: 'Plank', sets: 3, reps: '30-45s', rest: '30s', completed: false },
-        { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '45s', completed: false },
-      ];
-
-      const newPlan = await saveWorkoutPlan({
-        name: workoutType,
-        description: `AI-generated ${workoutType} workout tailored to your fitness level`,
-        exercises,
-        duration_minutes: 45,
-        difficulty_level: 'beginner',
-        status: 'scheduled',
-        scheduled_date: new Date().toISOString().split('T')[0],
-      });
-
+      const newPlan = await saveWorkoutPlan(workoutPlan);
       setActiveTab("scheduled");
+      
+      toast({
+        title: "Workout Generated!",
+        description: `Created a personalized ${workoutPlan.name} based on your profile, goals, and workout history.`,
+      });
     } catch (error) {
       console.error('Error generating workout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate workout. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -547,7 +728,7 @@ const WorkoutPlan = () => {
                     <span>Generate New Workout</span>
                   </CardTitle>
                   <CardDescription>
-                    Get a personalized workout plan based on your profile and goals
+                    Get a personalized workout plan based on your profile, goals, injuries, and workout history
                   </CardDescription>
                   {todayHasPlan && (
                     <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -559,6 +740,29 @@ const WorkoutPlan = () => {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Show user data status */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 mb-2">Data Considered for Generation:</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                      <div className="flex items-center">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Profile: {userData.profile ? 'Complete' : 'Basic'}
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Goals: {userData.goals.length} active
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Injuries: {userData.injuries.length} tracked
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Workouts: {userData.workouts.length} recent
+                      </div>
+                    </div>
+                  </div>
+                  
                   <Button 
                     onClick={generateWorkout} 
                     disabled={isGenerating || todayHasPlan}
@@ -568,12 +772,12 @@ const WorkoutPlan = () => {
                     {isGenerating ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Generating Workout...
+                        Analyzing Your Data & Generating...
                       </>
                     ) : (
                       <>
                         <Plus className="h-4 w-4 mr-2" />
-                        Generate Workout Plan
+                        Generate Intelligent Workout Plan
                       </>
                     )}
                   </Button>
