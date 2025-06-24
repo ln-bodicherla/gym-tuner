@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +10,6 @@ import RecentActivity from "@/components/RecentActivity";
 import Insights from "@/components/Insights";
 import QuickStats from "@/components/QuickStats";
 import SubscriptionManager from "@/components/SubscriptionManager";
-import SubscriptionCard from "@/components/SubscriptionCard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -156,10 +154,7 @@ const Index = () => {
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
               />
               <div className="min-w-0">
-                <div className="flex items-center space-x-2">
-                  <h1 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Gym Tuner</h1>
-                  <SubscriptionCard hasAccess={hasAccess()} onUpgrade={handleUpgrade} compact={true} />
-                </div>
+                <h1 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Gym Tuner</h1>
                 <p className="text-xs sm:text-sm text-gray-600 hidden sm:block truncate">
                   Welcome back, {getUserDisplayName()}
                 </p>
