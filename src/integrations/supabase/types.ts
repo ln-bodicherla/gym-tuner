@@ -117,44 +117,59 @@ export type Database = {
       profiles: {
         Row: {
           age: number | null
+          availability: string | null
           created_at: string | null
+          experience_years: number | null
           fitness_level: string | null
           full_name: string | null
           height: string | null
           id: string
           limitations: string | null
           max_workout_time: number | null
+          min_workout_time: number | null
           preferences: string | null
           preferred_time: number | null
+          preferred_workout_types: string | null
           updated_at: string | null
+          weekly_goal: number | null
           weight: number | null
         }
         Insert: {
           age?: number | null
+          availability?: string | null
           created_at?: string | null
+          experience_years?: number | null
           fitness_level?: string | null
           full_name?: string | null
           height?: string | null
           id: string
           limitations?: string | null
           max_workout_time?: number | null
+          min_workout_time?: number | null
           preferences?: string | null
           preferred_time?: number | null
+          preferred_workout_types?: string | null
           updated_at?: string | null
+          weekly_goal?: number | null
           weight?: number | null
         }
         Update: {
           age?: number | null
+          availability?: string | null
           created_at?: string | null
+          experience_years?: number | null
           fitness_level?: string | null
           full_name?: string | null
           height?: string | null
           id?: string
           limitations?: string | null
           max_workout_time?: number | null
+          min_workout_time?: number | null
           preferences?: string | null
           preferred_time?: number | null
+          preferred_workout_types?: string | null
           updated_at?: string | null
+          weekly_goal?: number | null
           weight?: number | null
         }
         Relationships: []
