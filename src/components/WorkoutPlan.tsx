@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivity } from "@/contexts/ActivityContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Exercise {
   name: string;
@@ -48,6 +49,7 @@ const WorkoutPlan = () => {
   const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
   const [activeInjuries, setActiveInjuries] = useState<any[]>([]);
   const [activeGoals, setActiveGoals] = useState<any[]>([]);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   // Load user data from Supabase
   useEffect(() => {
@@ -113,7 +115,7 @@ const WorkoutPlan = () => {
     localStorage.setItem('workoutPlans', JSON.stringify(workouts));
   }, [workouts]);
 
-  const generateIntelligentWorkout = async (isRegenerate = false) => {
+  const generateIntelligentWorkout = async (isRegenerate = false, forceGenerate = false) => {
     if (generating) return;
     
     setGenerating(true);
@@ -131,8 +133,16 @@ const WorkoutPlan = () => {
 
     const today = new Date().toISOString().split('T')[0];
     const existingTodayWorkout = workouts.find(w => w.date === today);
+    const completedTodayWorkout = workouts.find(w => w.date === today && w.status === 'completed');
     
-    if (existingTodayWorkout && !isRegenerate) {
+    // Check if there's a completed workout today and we're not forcing generation
+    if (completedTodayWorkout && !isRegenerate && !forceGenerate) {
+      setShowConfirmation(true);
+      setGenerating(false);
+      return;
+    }
+
+    if (existingTodayWorkout && !isRegenerate && !forceGenerate) {
       toast({
         title: "Today's Workout Exists",
         description: "You already have a workout plan for today. Use regenerate to create a new one.",
@@ -143,18 +153,21 @@ const WorkoutPlan = () => {
     }
 
     try {
-      // Analyze user data for intelligent generation
       const maxTime = parseInt(userProfile.max_workout_time) || 60;
       const fitnessLevel = userProfile.fitness_level || 'intermediate';
       const limitations = userProfile.limitations || '';
       
-      // Analyze recent workout patterns
-      const recentWorkoutTypes = recentWorkouts.map(w => w.name.toLowerCase());
-      const workoutFrequency = recentWorkouts.length;
+      // Analyze recent workout patterns - include completed workouts from localStorage
+      const allRecentWorkouts = [...recentWorkouts];
+      const completedLocalWorkouts = workouts.filter(w => w.status === 'completed' && w.date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+      allRecentWorkouts.push(...completedLocalWorkouts.map(w => ({ name: w.name, workout_date: w.date })));
+      
+      const recentWorkoutTypes = allRecentWorkouts.map(w => w.name.toLowerCase());
+      const workoutFrequency = allRecentWorkouts.length;
       
       // Get muscle groups worked recently
       const recentMuscleGroups = [];
-      recentWorkouts.slice(0, 7).forEach(workout => {
+      allRecentWorkouts.slice(0, 7).forEach(workout => {
         if (workout.name.toLowerCase().includes('chest') || workout.name.toLowerCase().includes('push')) {
           recentMuscleGroups.push('chest', 'shoulders', 'triceps');
         }
@@ -166,7 +179,6 @@ const WorkoutPlan = () => {
         }
       });
 
-      // Determine workout type based on data
       let workoutType;
       let focus: string[] = [];
       let exercises: Exercise[] = [];
@@ -174,16 +186,12 @@ const WorkoutPlan = () => {
 
       // Smart workout selection logic
       if (recentMuscleGroups.filter(g => g === 'chest').length >= 2) {
-        // Avoid chest if worked recently
         workoutType = recentMuscleGroups.filter(g => g === 'legs').length >= 2 ? 'Upper Back & Core' : 'Lower Body Strength';
       } else if (recentMuscleGroups.filter(g => g === 'legs').length >= 2) {
-        // Avoid legs if worked recently
         workoutType = 'Upper Body Push';
       } else if (workoutFrequency >= 4) {
-        // High frequency - include recovery
         workoutType = 'Active Recovery & Flexibility';
       } else {
-        // Default variety
         const types = ['Full Body Circuit', 'Upper Body Strength', 'Lower Body Power', 'Core & Cardio'];
         workoutType = types[Math.floor(Math.random() * types.length)];
       }
@@ -290,14 +298,14 @@ const WorkoutPlan = () => {
         status: 'scheduled',
         generatedAt: new Date().toISOString(),
         basedOnData: {
-          recentWorkouts: recentWorkouts.length,
+          recentWorkouts: allRecentWorkouts.length,
           activeInjuries: activeInjuries.length,
           activeGoals: activeGoals.length
         }
       };
 
       // Remove existing workout for today if regenerating
-      if (isRegenerate && existingTodayWorkout) {
+      if ((isRegenerate || forceGenerate) && existingTodayWorkout) {
         setWorkouts(prev => prev.filter(w => w.id !== existingTodayWorkout.id));
       }
 
@@ -310,17 +318,18 @@ const WorkoutPlan = () => {
         { 
           workoutType,
           duration,
-          basedOnRecentWorkouts: recentWorkouts.length,
+          basedOnRecentWorkouts: allRecentWorkouts.length,
           consideredInjuries: activeInjuries.length,
-          isRegenerate
+          isRegenerate: isRegenerate || forceGenerate
         }
       );
       
       toast({
-        title: isRegenerate ? "Workout Regenerated!" : "Smart Workout Generated!",
+        title: isRegenerate || forceGenerate ? "Workout Regenerated!" : "Smart Workout Generated!",
         description: `A ${duration}-minute ${workoutType.toLowerCase()} workout based on your recent activity and goals.`,
       });
 
+      setShowConfirmation(false);
     } catch (error) {
       console.error('Error generating workout:', error);
       toast({
@@ -331,6 +340,11 @@ const WorkoutPlan = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleConfirmGeneration = () => {
+    setShowConfirmation(false);
+    generateIntelligentWorkout(false, true);
   };
 
   const startWorkout = async (workoutId: string) => {
@@ -376,7 +390,7 @@ const WorkoutPlan = () => {
           notes: `Completed: ${workout.exercises.filter(e => e.completed).length}/${workout.exercises.length} exercises`
         });
 
-        await logActivity('workout_completed', 'Completed workout session', {
+        await logActivity('workout_completed', `Completed ${workout.name}`, {
           workoutName: workout.name,
           duration: workout.duration,
           completedExercises: workout.exercises.filter(e => e.completed).length
@@ -420,6 +434,32 @@ const WorkoutPlan = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Confirmation Dialog */}
+      {showConfirmation && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex flex-col space-y-3">
+            <span>You've already completed a workout today. Generate a new plan anyway?</span>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={handleConfirmGeneration}
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                Yes, Generate New Plan
+              </Button>
+              <Button 
+                onClick={() => setShowConfirmation(false)}
+                variant="outline"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader className="px-4 sm:px-6">
           <div className="flex items-center justify-between">

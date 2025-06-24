@@ -1,34 +1,22 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Target, Clock, AlertTriangle, TrendingUp, LogOut, User, Heart } from "lucide-react";
+import { TrendingUp, LogOut, User, Heart, Target, AlertTriangle } from "lucide-react";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
 import WorkoutPlan from "@/components/WorkoutPlan";
 import RecentActivity from "@/components/RecentActivity";
 import Insights from "@/components/Insights";
+import QuickStats from "@/components/QuickStats";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useActivity } from "@/contexts/ActivityContext";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
-  const { logActivity } = useActivity();
-
-  // Mock data for demonstration
-  const userStats = {
-    weeklyGoal: 4,
-    completedWorkouts: 2,
-    activeInjuries: 1,
-    currentStreak: 5
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -106,65 +94,8 @@ const Index = () => {
           </div>
 
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-blue-600">Weekly Goal</p>
-                      <p className="text-lg sm:text-2xl font-bold text-blue-900">{userStats.completedWorkouts}/{userStats.weeklyGoal}</p>
-                    </div>
-                    <div className="bg-blue-500 p-2 sm:p-3 rounded-full">
-                      <Target className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                  </div>
-                  <Progress value={(userStats.completedWorkouts / userStats.weeklyGoal) * 100} className="mt-2 sm:mt-3" />
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-green-600">Current Streak</p>
-                      <p className="text-lg sm:text-2xl font-bold text-green-900">{userStats.currentStreak} days</p>
-                    </div>
-                    <div className="bg-green-500 p-2 sm:p-3 rounded-full">
-                      <Activity className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-orange-600">Active Injuries</p>
-                      <p className="text-lg sm:text-2xl font-bold text-orange-900">{userStats.activeInjuries}</p>
-                    </div>
-                    <div className="bg-orange-500 p-2 sm:p-3 rounded-full">
-                      <AlertTriangle className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-purple-600">This Week</p>
-                      <p className="text-lg sm:text-2xl font-bold text-purple-900">{userStats.completedWorkouts}</p>
-                    </div>
-                    <div className="bg-purple-500 p-2 sm:p-3 rounded-full">
-                      <Heart className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Quick Stats - Now using the dedicated component */}
+            <QuickStats />
 
             {/* Recent Activity and Insights */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
