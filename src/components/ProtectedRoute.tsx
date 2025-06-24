@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/hooks/useAuth';
-import AuthForm from '@/components/AuthForm';
+import { Navigate } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!user) {
-    return <AuthForm />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;

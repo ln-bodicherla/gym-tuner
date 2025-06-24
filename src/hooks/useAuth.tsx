@@ -27,6 +27,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Navigate based on auth state
+        if (event === 'SIGNED_IN' && session) {
+          window.location.href = '/dashboard';
+        } else if (event === 'SIGNED_OUT') {
+          window.location.href = '/';
+        }
       }
     );
 
@@ -41,7 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -74,8 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state immediately
       setSession(null);
       setUser(null);
-      // Force redirect to auth page
-      window.location.href = '/auth';
     }
   };
 
