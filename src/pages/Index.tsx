@@ -5,17 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Target, Clock, AlertTriangle, Plus, TrendingUp, Menu } from "lucide-react";
+import { Activity, Target, Clock, AlertTriangle, Plus, TrendingUp, LogOut } from "lucide-react";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
 import WorkoutPlan from "@/components/WorkoutPlan";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { toast } = useToast();
+  const { signOut, user } = useAuth();
 
   // Mock data for demonstration
   const userStats = {
@@ -30,6 +32,18 @@ const Index = () => {
       title: "Workout Plan Generated!",
       description: "A personalized plan has been created based on your profile and current status.",
     });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed out successfully",
+      description: "See you next time!",
+    });
+  };
+
+  const getUserDisplayName = () => {
+    return user?.user_metadata?.full_name || user?.email || 'User';
   };
 
   const tabItems = [
@@ -52,19 +66,32 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Gym Tuner</h1>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Smart Workout Planning</p>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, {getUserDisplayName()}</p>
               </div>
             </div>
             
-            {/* Mobile Generate Plan Button */}
-            <Button 
-              onClick={handleGeneratePlan} 
-              className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-3 py-2 sm:px-4 sm:py-2"
-              size="sm"
-            >
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Generate Plan</span>
-            </Button>
+            <div className="flex items-center space-x-2">
+              {/* Mobile Generate Plan Button */}
+              <Button 
+                onClick={handleGeneratePlan} 
+                className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-3 py-2 sm:px-4 sm:py-2"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Generate Plan</span>
+              </Button>
+              
+              {/* Sign Out Button */}
+              <Button 
+                onClick={handleSignOut}
+                variant="outline"
+                size="sm"
+                className="px-3 py-2"
+              >
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

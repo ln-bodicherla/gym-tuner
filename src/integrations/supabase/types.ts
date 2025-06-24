@@ -9,7 +9,221 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      goals: {
+        Row: {
+          created_at: string | null
+          current_value: number | null
+          description: string | null
+          id: string
+          status: string | null
+          target_date: string | null
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      injuries: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          created_at: string | null
+          fitness_level: string | null
+          full_name: string | null
+          height: string | null
+          id: string
+          limitations: string | null
+          max_workout_time: number | null
+          preferences: string | null
+          preferred_time: number | null
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          height?: string | null
+          id: string
+          limitations?: string | null
+          max_workout_time?: number | null
+          preferences?: string | null
+          preferred_time?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          height?: string | null
+          id?: string
+          limitations?: string | null
+          max_workout_time?: number | null
+          preferences?: string | null
+          preferred_time?: number | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: []
+      }
+      workout_plans: {
+        Row: {
+          completed_date: string | null
+          created_at: string | null
+          description: string | null
+          difficulty_level: string | null
+          duration_minutes: number | null
+          exercises: Json | null
+          id: string
+          name: string
+          scheduled_date: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_date?: string | null
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_minutes?: number | null
+          exercises?: Json | null
+          id?: string
+          name: string
+          scheduled_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_date?: string | null
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_minutes?: number | null
+          exercises?: Json | null
+          id?: string
+          name?: string
+          scheduled_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workouts: {
+        Row: {
+          calories_burned: number | null
+          created_at: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          id: string
+          name: string
+          notes: string | null
+          plan_id: string | null
+          start_time: string | null
+          user_id: string
+          workout_date: string | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          plan_id?: string | null
+          start_time?: string | null
+          user_id: string
+          workout_date?: string | null
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          plan_id?: string | null
+          start_time?: string | null
+          user_id?: string
+          workout_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
