@@ -48,6 +48,18 @@ const Index = () => {
     }
   }, [toast, checkSubscriptionStatus]);
 
+  // Listen for upgrade button clicks from child components
+  useEffect(() => {
+    const handleUpgradeClick = (event: CustomEvent) => {
+      setActiveTab("subscription");
+    };
+
+    window.addEventListener('upgrade-to-pro' as any, handleUpgradeClick);
+    return () => {
+      window.removeEventListener('upgrade-to-pro' as any, handleUpgradeClick);
+    };
+  }, []);
+
   const handleSignOut = async () => {
     await signOut();
     toast({

@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw } from "lucide-react";
+import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLogger } from "@/hooks/useActivityLogger";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface Exercise {
   name: string;
@@ -40,6 +41,7 @@ const WorkoutPlan = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { logActivity } = useActivityLogger();
+  const { subscriptionInfo, hasAccess } = useSubscription();
 
   useEffect(() => {
     if (user) {
@@ -175,6 +177,15 @@ const WorkoutPlan = () => {
   };
 
   const generateWorkout = async () => {
+    if (!hasAccess()) {
+      toast({
+        title: "Subscription Required",
+        description: "Please upgrade to Pro to generate AI workout plans.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
       // Simulate AI workout generation
@@ -328,6 +339,7 @@ const WorkoutPlan = () => {
           <TabsTrigger value="generate" className="flex items-center space-x-2">
             <Target className="h-4 w-4" />
             <span>Generate</span>
+            {!hasAccess() && <Crown className="h-3 w-3 text-yellow-500" />}
           </TabsTrigger>
           <TabsTrigger value="scheduled" className="flex items-center space-x-2">
             <Clock className="h-4 w-4" />
@@ -344,35 +356,56 @@ const WorkoutPlan = () => {
         </TabsList>
 
         <TabsContent value="generate">
-          <Card>
+          <Card className={!hasAccess() ? "border-orange-200 bg-orange-50" : ""}>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Target className="h-5 w-5 text-blue-600" />
                 <span>Generate New Workout</span>
+                {!hasAccess() && <Crown className="h-4 w-4 text-yellow-500" />}
               </CardTitle>
               <CardDescription>
-                Get a personalized workout plan based on your profile and goals
+                {hasAccess() 
+                  ? "Get a personalized workout plan based on your profile and goals"
+                  : "Upgrade to Pro to unlock AI-generated workout plans"
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
-                onClick={generateWorkout} 
-                disabled={isGenerating}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Generating Workout...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate Workout Plan
-                  </>
-                )}
-              </Button>
+              {!hasAccess() ? (
+                <div className="text-center py-8">
+                  <Lock className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-orange-800 mb-2">Pro Feature</h3>
+                  <p className="text-orange-700 mb-4">
+                    AI workout generation is available with Gym Tuner Pro subscription.
+                  </p>
+                  <Button 
+                    onClick={() => setActiveTab("subscription")}
+                    className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+                  >
+                    <Crown className="h-4 w-4 mr-2" />
+                    Upgrade to Pro
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  onClick={generateWorkout} 
+                  disabled={isGenerating}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  size="lg"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Generating Workout...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Generate Workout Plan
+                    </>
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
