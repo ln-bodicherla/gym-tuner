@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,47 +129,60 @@ const Index = () => {
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
             {/* Quick Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Weekly Progress</CardTitle>
-                  <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="text-lg sm:text-2xl font-bold">{userStats.completedWorkouts}/{userStats.weeklyGoal}</div>
-                  <Progress value={(userStats.completedWorkouts / userStats.weeklyGoal) * 100} className="mt-2 h-1 sm:h-2" />
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-blue-600">Weekly Goal</p>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-900">{userStats.completedWorkouts}/{userStats.weeklyGoal}</p>
+                    </div>
+                    <div className="bg-blue-500 p-2 sm:p-3 rounded-full">
+                      <Target className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                  </div>
+                  <Progress value={(userStats.completedWorkouts / userStats.weeklyGoal) * 100} className="mt-2 sm:mt-3" />
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Current Streak</CardTitle>
-                  <Target className="h-3 w-3 sm:h-4 sm:w-4" />
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="text-lg sm:text-2xl font-bold">{userStats.currentStreak} days</div>
-                  <p className="text-xs opacity-90">Keep it up!</p>
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-green-600">Current Streak</p>
+                      <p className="text-lg sm:text-2xl font-bold text-green-900">{userStats.currentStreak} days</p>
+                    </div>
+                    <div className="bg-green-500 p-2 sm:p-3 rounded-full">
+                      <Activity className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Active Status</CardTitle>
-                  <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="text-lg sm:text-2xl font-bold">Ready</div>
-                  <p className="text-xs opacity-90">No restrictions</p>
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-orange-600">Active Injuries</p>
+                      <p className="text-lg sm:text-2xl font-bold text-orange-900">{userStats.activeInjuries}</p>
+                    </div>
+                    <div className="bg-orange-500 p-2 sm:p-3 rounded-full">
+                      <AlertTriangle className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className={`${userStats.activeInjuries > 0 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' : 'bg-gradient-to-r from-gray-500 to-gray-600'} text-white`}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Injuries</CardTitle>
-                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" />
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="text-lg sm:text-2xl font-bold">{userStats.activeInjuries}</div>
-                  <p className="text-xs opacity-90">{userStats.activeInjuries > 0 ? 'Plan adjusted' : 'All clear'}</p>
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs sm:text-sm font-medium text-purple-600">This Week</p>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-900">{userStats.completedWorkouts}</p>
+                    </div>
+                    <div className="bg-purple-500 p-2 sm:p-3 rounded-full">
+                      <Heart className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>

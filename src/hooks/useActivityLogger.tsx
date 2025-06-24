@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { logActivityDirect, getActivitiesDirect } from '@/utils/activityHelpers';
 
 export interface ActivityLog {
   id: string;
@@ -28,19 +28,8 @@ export const useActivityLogger = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('activity_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error('Error loading activities:', error);
-        return;
-      }
-
-      setActivities(data || []);
+      const data = await getActivitiesDirect(user.id);
+      setActivities(data);
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {
@@ -56,20 +45,7 @@ export const useActivityLogger = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('activity_logs')
-        .insert({
-          user_id: user.id,
-          activity_type: type,
-          description,
-          metadata,
-        });
-
-      if (error) {
-        console.error('Error logging activity:', error);
-        return;
-      }
-
+      await logActivityDirect(user.id, type, description, metadata);
       // Refresh activities after logging
       await loadActivities();
     } catch (error) {
