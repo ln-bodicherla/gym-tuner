@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useSubscription } from "@/hooks/useSubscription";
 import SubscriptionCard from "./SubscriptionCard";
 import LockedFeature from "./LockedFeature";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Exercise {
   name: string;
@@ -45,6 +45,7 @@ const WorkoutPlan = () => {
   const { user } = useAuth();
   const { logActivity } = useActivityLogger();
   const { subscriptionInfo, hasAccess } = useSubscription();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
@@ -346,23 +347,48 @@ const WorkoutPlan = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-gray-100">
-          <TabsTrigger value="generate" className="flex items-center space-x-2">
+        <TabsList className={`${isMobile ? 'grid grid-cols-2 grid-rows-2 h-auto p-1 gap-1' : 'grid grid-cols-4'} w-full bg-gray-100`}>
+          <TabsTrigger 
+            value="generate" 
+            className={`flex items-center ${isMobile ? 'justify-center px-2 py-2 text-xs' : 'space-x-2'}`}
+          >
             <Target className="h-4 w-4" />
-            <span>Generate</span>
-            {!hasAccess() && <Crown className="h-3 w-3 text-yellow-500" />}
+            {!isMobile && <span>Generate</span>}
+            {isMobile && <span className="ml-1">Generate</span>}
+            {!hasAccess() && <Crown className="h-3 w-3 text-yellow-500 ml-1" />}
           </TabsTrigger>
-          <TabsTrigger value="scheduled" className="flex items-center space-x-2">
+          <TabsTrigger 
+            value="scheduled" 
+            className={`flex items-center ${isMobile ? 'justify-center px-2 py-2 text-xs' : 'space-x-2'}`}
+          >
             <Clock className="h-4 w-4" />
-            <span>Scheduled ({scheduledPlans.length})</span>
+            {isMobile ? (
+              <span className="ml-1">Scheduled</span>
+            ) : (
+              <span>Scheduled ({scheduledPlans.length})</span>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="active" className="flex items-center space-x-2">
+          <TabsTrigger 
+            value="active" 
+            className={`flex items-center ${isMobile ? 'justify-center px-2 py-2 text-xs' : 'space-x-2'}`}
+          >
             <Dumbbell className="h-4 w-4" />
-            <span>Active ({activePlans.length})</span>
+            {isMobile ? (
+              <span className="ml-1">Active</span>
+            ) : (
+              <span>Active ({activePlans.length})</span>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center space-x-2">
+          <TabsTrigger 
+            value="completed" 
+            className={`flex items-center ${isMobile ? 'justify-center px-2 py-2 text-xs' : 'space-x-2'}`}
+          >
             <CheckCircle2 className="h-4 w-4" />
-            <span>Completed ({completedPlans.length})</span>
+            {isMobile ? (
+              <span className="ml-1">Done</span>
+            ) : (
+              <span>Completed ({completedPlans.length})</span>
+            )}
           </TabsTrigger>
         </TabsList>
 
