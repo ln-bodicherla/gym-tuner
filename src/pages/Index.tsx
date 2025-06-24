@@ -13,12 +13,14 @@ import SubscriptionManager from "@/components/SubscriptionManager";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
   const { subscriptionInfo, checkSubscriptionStatus, loading, initialCheckComplete } = useSubscription();
+  const isMobile = useIsMobile();
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
@@ -196,7 +198,7 @@ const Index = () => {
 
       {/* Mobile Bottom Navigation - Improved spacing and alignment */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="grid grid-cols-6 py-1">
+        <div className={`${isMobile ? 'grid grid-cols-3 grid-rows-2 gap-0' : 'grid grid-cols-6'} py-1`}>
           {tabItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.value;
@@ -212,9 +214,9 @@ const Index = () => {
                 }`}
               >
                 <div className="relative mb-1">
-                  <Icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : ''}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-blue-600' : ''}`} />
                   {isSubscriptionTab && subscriptionInfo?.subscribed && (
-                    <Crown className="h-2.5 w-2.5 text-yellow-500 absolute -top-0.5 -right-0.5" />
+                    <Crown className="h-2 w-2 text-yellow-500 absolute -top-0.5 -right-0.5" />
                   )}
                 </div>
                 <span className="text-xs font-medium leading-none">{item.label}</span>
