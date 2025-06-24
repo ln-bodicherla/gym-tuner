@@ -29,8 +29,9 @@ export const useActivityLogger = () => {
 
     try {
       const data = await getActivitiesDirect(user.id);
-      // Cast the data to our ActivityLog type since we're using direct queries
-      setActivities(data as ActivityLog[]);
+      // Properly cast the data with proper type checking
+      const typedActivities = (data as unknown as ActivityLog[]) || [];
+      setActivities(typedActivities);
     } catch (error) {
       console.error('Error loading activities:', error);
       setActivities([]);

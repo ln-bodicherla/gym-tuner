@@ -10,7 +10,7 @@ export const logActivityDirect = async (
 ) => {
   try {
     const { error } = await supabase
-      .from('activity_logs' as any)
+      .from('activity_logs')
       .insert({
         user_id: userId,
         activity_type: activityType,
@@ -29,7 +29,7 @@ export const logActivityDirect = async (
 export const getActivitiesDirect = async (userId: string, limit = 10) => {
   try {
     const { data, error } = await supabase
-      .from('activity_logs' as any)
+      .from('activity_logs')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
