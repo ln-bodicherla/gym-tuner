@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,16 +18,15 @@ import { useSubscription } from "@/hooks/useSubscription";
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
-  const { signOut, user } = useAuth();
-  const { subscriptionInfo, checkSubscriptionStatus, loading, initialCheckComplete } = useSubscription();
+  const { signOut, user, loading: authLoading } = useAuth();
+  const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete } = useSubscription();
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
-    if (!initialCheckComplete || !user) return;
+    if (!initialCheckComplete || !user || authLoading) return;
     
     const urlParams = new URLSearchParams(window.location.search);
     const subscription = urlParams.get('subscription');
-    const sessionId = urlParams.get('session_id');
     
     if (subscription === 'success') {
       toast({
@@ -52,7 +52,7 @@ const Index = () => {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast, checkSubscriptionStatus, initialCheckComplete, user]);
+  }, [toast, checkSubscriptionStatus, initialCheckComplete, user, authLoading]);
 
   // Listen for upgrade button clicks from child components
   useEffect(() => {
@@ -87,8 +87,8 @@ const Index = () => {
     { value: "subscription", label: "Pro", icon: Crown },
   ];
 
-  // Show loading state while checking authentication and subscription
-  if (!user || loading || !initialCheckComplete) {
+  // Show loading state while checking authentication
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
