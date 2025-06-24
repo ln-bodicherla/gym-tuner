@@ -26,13 +26,20 @@ export const useSubscription = () => {
 
     try {
       setLoading(true);
+      console.log('Checking subscription status for user:', user.email);
+      
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking subscription:', error);
+        throw error;
+      }
+      
+      console.log('Subscription check response:', data);
       setSubscriptionInfo(data);
     } catch (error) {
       console.error('Error checking subscription:', error);

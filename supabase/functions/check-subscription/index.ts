@@ -70,26 +70,42 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
+    // Check for both active and trialing subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
-      limit: 1,
+      status: "all", // Get all subscriptions
+      limit: 10,
     });
-    const hasActiveSub = subscriptions.data.length > 0;
+    
+    logStep("Retrieved subscriptions", { 
+      count: subscriptions.data.length, 
+      statuses: subscriptions.data.map(s => ({ id: s.id, status: s.status }))
+    });
+
+    // Find active or trialing subscription
+    const activeSubscription = subscriptions.data.find(sub => 
+      sub.status === "active" || sub.status === "trialing"
+    );
+
+    const hasActiveSub = !!activeSubscription;
     let subscriptionTier = null;
     let subscriptionEnd = null;
     let trialEnd = null;
 
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      if (subscription.trial_end) {
-        trialEnd = new Date(subscription.trial_end * 1000).toISOString();
+    if (hasActiveSub && activeSubscription) {
+      subscriptionEnd = new Date(activeSubscription.current_period_end * 1000).toISOString();
+      if (activeSubscription.trial_end) {
+        trialEnd = new Date(activeSubscription.trial_end * 1000).toISOString();
       }
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd, trialEnd });
+      logStep("Active subscription found", { 
+        subscriptionId: activeSubscription.id, 
+        status: activeSubscription.status,
+        endDate: subscriptionEnd, 
+        trialEnd 
+      });
       
       // Determine subscription tier from price
-      const priceId = subscription.items.data[0].price.id;
+      const priceId = activeSubscription.items.data[0].price.id;
       const price = await stripe.prices.retrieve(priceId);
       const amount = price.unit_amount || 0;
       if (amount <= 999) {

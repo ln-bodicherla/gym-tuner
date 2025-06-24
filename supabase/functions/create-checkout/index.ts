@@ -75,10 +75,19 @@ serve(async (req) => {
       mode: "subscription",
       subscription_data: {
         trial_period_days: 7, // 7-day free trial
+        metadata: {
+          user_id: user.id,
+          user_email: user.email,
+        },
       },
-      success_url: `${origin}/?subscription=success`,
+      success_url: `${origin}/?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?subscription=cancelled`,
       allow_promotion_codes: true,
+      billing_address_collection: "auto",
+      customer_update: {
+        address: "auto",
+        name: "auto"
+      },
     });
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });

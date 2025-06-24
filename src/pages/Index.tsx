@@ -25,18 +25,23 @@ const Index = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const subscription = urlParams.get('subscription');
+    const sessionId = urlParams.get('session_id');
     
     if (subscription === 'success') {
       toast({
         title: "Welcome to Gym Tuner Pro!",
-        description: "Your subscription is now active. Enjoy unlimited AI workouts!",
+        description: "Your subscription is now active. Checking status...",
       });
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      // Refresh subscription status
+      // Refresh subscription status with a delay to allow Stripe to process
       setTimeout(() => {
         checkSubscriptionStatus();
-      }, 2000);
+      }, 3000);
+      // Check again after 10 seconds if still not updated
+      setTimeout(() => {
+        checkSubscriptionStatus();
+      }, 10000);
     } else if (subscription === 'cancelled') {
       toast({
         title: "Subscription Cancelled",
