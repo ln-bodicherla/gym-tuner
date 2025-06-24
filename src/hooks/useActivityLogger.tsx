@@ -29,9 +29,11 @@ export const useActivityLogger = () => {
 
     try {
       const data = await getActivitiesDirect(user.id);
-      setActivities(data);
+      // Cast the data to our ActivityLog type since we're using direct queries
+      setActivities(data as ActivityLog[]);
     } catch (error) {
       console.error('Error loading activities:', error);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
