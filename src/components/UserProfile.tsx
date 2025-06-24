@@ -232,7 +232,7 @@ const UserProfile = () => {
               {isEditing ? (
                 <Input
                   id="height"
-                  placeholder="5'10\" or 178cm"
+                  placeholder="5'10&quot; or 178cm"
                   value={profile.height}
                   onChange={(e) => setProfile({...profile, height: e.target.value})}
                 />
