@@ -78,7 +78,7 @@ const Index = () => {
     { value: "injuries", label: "Injuries", icon: AlertTriangle },
     { value: "goals", label: "Goals", icon: Target },
     { value: "workouts", label: "Workouts", icon: Heart },
-    { value: "subscription", label: "Subscription", icon: Crown },
+    { value: "subscription", label: "Pro", icon: Crown },
   ];
 
   return (
@@ -87,35 +87,34 @@ const Index = () => {
       <div className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <img 
                 src="/lovable-uploads/5e825f2e-98c7-4e9c-87a9-1b104539f992.png" 
                 alt="Gym Tuner Logo" 
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
               />
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Gym Tuner</h1>
+                  <h1 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 truncate">Gym Tuner</h1>
                   {subscriptionInfo?.subscribed && (
-                    <Crown className="h-4 w-4 text-yellow-500" />
+                    <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, {getUserDisplayName()}</p>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block truncate">
+                  Welcome back, {getUserDisplayName()}
+                </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              {/* Sign Out Button */}
-              <Button 
-                onClick={handleSignOut}
-                variant="outline"
-                size="sm"
-                className="px-3 py-2"
-              >
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
+            <Button 
+              onClick={handleSignOut}
+              variant="outline"
+              size="sm"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
+            >
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -127,14 +126,20 @@ const Index = () => {
             <TabsList className="grid grid-cols-6 w-full bg-transparent gap-1">
               {tabItems.map((item) => {
                 const Icon = item.icon;
+                const isSubscriptionTab = item.value === "subscription";
                 return (
                   <TabsTrigger 
                     key={item.value}
                     value={item.value} 
-                    className="flex items-center space-x-2 px-4 py-3 text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-orange-500 data-[state=active]:text-white rounded-md"
+                    className="flex items-center justify-center space-x-2 px-3 py-3 text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-orange-500 data-[state=active]:text-white rounded-md transition-all duration-200"
                   >
-                    <Icon className="h-5 w-5" />
-                    <span>{item.label}</span>
+                    <div className="relative">
+                      <Icon className="h-4 w-4" />
+                      {isSubscriptionTab && subscriptionInfo?.subscribed && (
+                        <Crown className="h-3 w-3 text-yellow-400 absolute -top-1 -right-1" />
+                      )}
+                    </div>
+                    <span className="hidden lg:inline">{item.label}</span>
                   </TabsTrigger>
                 );
               })}
@@ -142,10 +147,7 @@ const Index = () => {
           </div>
 
           <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
-            {/* Quick Stats - Now using the dedicated component */}
             <QuickStats />
-
-            {/* Recent Activity and Insights */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <RecentActivity />
               <Insights />
@@ -174,29 +176,30 @@ const Index = () => {
         </Tabs>
       </div>
 
-      {/* Mobile Bottom Navigation - Only visible on mobile */}
+      {/* Mobile Bottom Navigation - Improved spacing and alignment */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="flex justify-around py-2">
+        <div className="grid grid-cols-6 py-1">
           {tabItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.value;
+            const isSubscriptionTab = item.value === "subscription";
             return (
               <button
                 key={item.value}
                 onClick={() => setActiveTab(item.value)}
-                className={`flex flex-col items-center justify-center py-2 px-3 transition-colors duration-200 ${
+                className={`flex flex-col items-center justify-center py-2 px-1 transition-colors duration-200 ${
                   isActive 
                     ? 'text-blue-600' 
                     : 'text-gray-500 hover:text-blue-600'
                 }`}
               >
-                <div className="relative">
-                  <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : ''}`} />
-                  {item.value === 'subscription' && subscriptionInfo?.subscribed && (
-                    <Crown className="h-3 w-3 text-yellow-500 absolute -top-1 -right-1" />
+                <div className="relative mb-1">
+                  <Icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : ''}`} />
+                  {isSubscriptionTab && subscriptionInfo?.subscribed && (
+                    <Crown className="h-2.5 w-2.5 text-yellow-500 absolute -top-0.5 -right-0.5" />
                   )}
                 </div>
-                <span className="text-xs mt-1 font-medium">{item.label}</span>
+                <span className="text-xs font-medium leading-none">{item.label}</span>
               </button>
             );
           })}
