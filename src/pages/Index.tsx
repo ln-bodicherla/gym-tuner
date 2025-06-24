@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -67,11 +66,20 @@ const Index = () => {
   }, []);
 
   const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed out successfully",
-      description: "See you next time!",
-    });
+    try {
+      await signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "See you next time!",
+      });
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      toast({
+        title: "Error signing out",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getUserDisplayName = () => {
@@ -128,7 +136,7 @@ const Index = () => {
               onClick={handleSignOut}
               variant="outline"
               size="sm"
-              className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200"
             >
               <LogOut className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>
