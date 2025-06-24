@@ -1,1085 +1,590 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History, RefreshCw, AlertTriangle, PlusCircle } from "lucide-react";
+import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useActivity } from "@/contexts/ActivityContext";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useActivityLogger } from "@/hooks/useActivityLogger";
 
 interface Exercise {
   name: string;
   sets: number;
   reps: string;
   rest: string;
-  notes?: string;
   completed: boolean;
 }
 
-interface Workout {
+interface WorkoutPlan {
   id: string;
   name: string;
-  duration: number;
-  difficulty: string;
-  focus: string[];
+  description: string;
   exercises: Exercise[];
-  date: string;
-  status: "scheduled" | "in-progress" | "completed";
-  generatedAt: string;
-  basedOnData?: {
-    recentWorkouts: number;
-    activeInjuries: number;
-    activeGoals: number;
-  };
+  duration_minutes: number;
+  difficulty_level: string;
+  status: 'scheduled' | 'in-progress' | 'completed';
+  scheduled_date: string;
+  completed_date?: string;
+  created_at: string;
 }
 
 const WorkoutPlan = () => {
+  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [activeTab, setActiveTab] = useState("generate");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentWorkout, setCurrentWorkout] = useState<WorkoutPlan | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { logActivity } = useActivity();
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [activeWorkout, setActiveWorkout] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
-  const [activeInjuries, setActiveInjuries] = useState<any[]>([]);
-  const [activeGoals, setActiveGoals] = useState<any[]>([]);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [extendTime, setExtendTime] = useState<string>("");
-  const [extendingWorkout, setExtendingWorkout] = useState<string | null>(null);
+  const { logActivity } = useActivityLogger();
 
-  // Load user data from Supabase
   useEffect(() => {
     if (user) {
-      loadUserData();
       loadWorkoutPlans();
     }
   }, [user]);
 
-  const loadUserData = async () => {
+  const loadWorkoutPlans = async () => {
+    if (!user) return;
+    
     try {
-      // Load profile
-      const { data: profile } = await supabase
-        .from('profiles')
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('workout_plans')
         .select('*')
-        .eq('id', user?.id)
-        .single();
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-      // Load recent workouts (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data: workoutsData } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', user?.id)
-        .gte('workout_date', thirtyDaysAgo.toISOString().split('T')[0])
-        .order('workout_date', { ascending: false });
+      if (error) throw error;
 
-      // Load active injuries
-      const { data: injuriesData } = await supabase
-        .from('injuries')
-        .select('*')
-        .eq('user_id', user?.id)
-        .in('status', ['active', 'recovering']);
+      const formattedPlans: WorkoutPlan[] = (data || []).map(plan => ({
+        ...plan,
+        exercises: Array.isArray(plan.exercises) 
+          ? (plan.exercises as unknown as Exercise[])
+          : [],
+        scheduled_date: plan.scheduled_date || new Date().toISOString().split('T')[0],
+        completed_date: plan.completed_date || undefined
+      }));
 
-      // Load active goals
-      const { data: goalsData } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('status', 'active');
-
-      setUserProfile(profile);
-      setRecentWorkouts(workoutsData || []);
-      setActiveInjuries(injuriesData || []);
-      setActiveGoals(goalsData || []);
+      setWorkoutPlans(formattedPlans);
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error loading workout plans:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load workout plans. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const loadWorkoutPlans = async () => {
+  const saveWorkoutPlan = async (planData: Omit<WorkoutPlan, 'id' | 'created_at'>) => {
+    if (!user) return;
+
     try {
-      const { data: workoutPlans, error } = await supabase
+      const { data, error } = await supabase
         .from('workout_plans')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        .insert({
+          user_id: user.id,
+          name: planData.name,
+          description: planData.description,
+          exercises: planData.exercises as any,
+          duration_minutes: planData.duration_minutes,
+          difficulty_level: planData.difficulty_level,
+          status: planData.status,
+          scheduled_date: planData.scheduled_date,
+          completed_date: planData.completed_date || null
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      // Transform database format to component format
-      const transformedWorkouts = workoutPlans?.map(plan => ({
-        id: plan.id,
-        name: plan.name,
-        duration: plan.duration_minutes || 0,
-        difficulty: plan.difficulty_level || 'intermediate',
-        focus: [], // Will be derived from exercises
-        exercises: plan.exercises as Exercise[] || [],
-        date: plan.scheduled_date || new Date().toISOString().split('T')[0],
-        status: plan.status as "scheduled" | "in-progress" | "completed",
-        generatedAt: plan.created_at || new Date().toISOString(),
-        basedOnData: plan.description ? JSON.parse(plan.description) : undefined
-      })) || [];
-
-      setWorkouts(transformedWorkouts);
-
-      // Find active workout
-      const activeWorkoutPlan = transformedWorkouts.find(w => w.status === 'in-progress');
-      if (activeWorkoutPlan) {
-        setActiveWorkout(activeWorkoutPlan.id);
-      }
-    } catch (error) {
-      console.error('Error loading workout plans:', error);
-      toast({
-        title: "Error Loading Workouts",
-        description: "Failed to load your workout plans. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const saveWorkoutPlan = async (workout: Workout, isUpdate = false) => {
-    try {
-      const workoutPlanData = {
-        user_id: user?.id,
-        name: workout.name,
-        description: workout.basedOnData ? JSON.stringify(workout.basedOnData) : null,
-        exercises: workout.exercises,
-        duration_minutes: workout.duration,
-        difficulty_level: workout.difficulty,
-        status: workout.status,
-        scheduled_date: workout.date,
-        completed_date: workout.status === 'completed' ? workout.date : null
+      const newPlan: WorkoutPlan = {
+        ...data,
+        exercises: Array.isArray(data.exercises) 
+          ? (data.exercises as unknown as Exercise[])
+          : [],
+        scheduled_date: data.scheduled_date || new Date().toISOString().split('T')[0],
+        completed_date: data.completed_date || undefined
       };
 
-      if (isUpdate) {
-        const { error } = await supabase
-          .from('workout_plans')
-          .update(workoutPlanData)
-          .eq('id', workout.id)
-          .eq('user_id', user?.id);
+      setWorkoutPlans(prev => [newPlan, ...prev]);
+      await logActivity('plan_generated', `Generated new workout plan: ${planData.name}`);
+      
+      toast({
+        title: "Success",
+        description: "Workout plan saved successfully!",
+      });
 
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('workout_plans')
-          .insert(workoutPlanData)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Update local state with the new ID from database
-        workout.id = data.id;
-      }
-
-      return workout;
+      return newPlan;
     } catch (error) {
       console.error('Error saving workout plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save workout plan. Please try again.",
+        variant: "destructive",
+      });
       throw error;
     }
   };
 
-  const generateIntelligentWorkout = async (isRegenerate = false, forceGenerate = false) => {
-    if (generating) return;
-    
-    setGenerating(true);
-
-    // Check if user profile exists and has basic information
-    if (!userProfile || !userProfile.fitness_level) {
-      toast({
-        title: "Profile Required",
-        description: "Please complete your profile first to generate personalized workouts.",
-        variant: "destructive"
-      });
-      setGenerating(false);
-      return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const existingTodayWorkout = workouts.find(w => w.date === today);
-    const completedTodayWorkout = workouts.find(w => w.date === today && w.status === 'completed');
-    
-    // Check if there's a completed workout today and we're not forcing generation
-    if (completedTodayWorkout && !isRegenerate && !forceGenerate) {
-      setShowConfirmation(true);
-      setGenerating(false);
-      return;
-    }
-
-    if (existingTodayWorkout && !isRegenerate && !forceGenerate) {
-      toast({
-        title: "Today's Workout Exists",
-        description: "You already have a workout plan for today. Use regenerate to create a new one.",
-        variant: "destructive"
-      });
-      setGenerating(false);
-      return;
-    }
+  const updateWorkoutPlan = async (planId: string, updates: Partial<WorkoutPlan>) => {
+    if (!user) return;
 
     try {
-      const maxTime = parseInt(userProfile.max_workout_time) || 60;
-      const fitnessLevel = userProfile.fitness_level || 'intermediate';
-      const limitations = userProfile.limitations || '';
-      
-      // Analyze recent workout patterns
-      const allRecentWorkouts = [...recentWorkouts];
-      const completedLocalWorkouts = workouts.filter(w => w.status === 'completed' && w.date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-      allRecentWorkouts.push(...completedLocalWorkouts.map(w => ({ name: w.name, workout_date: w.date })));
-      
-      const recentWorkoutTypes = allRecentWorkouts.map(w => w.name.toLowerCase());
-      const workoutFrequency = allRecentWorkouts.length;
-      
-      // Get muscle groups worked recently
-      const recentMuscleGroups = [];
-      allRecentWorkouts.slice(0, 7).forEach(workout => {
-        if (workout.name.toLowerCase().includes('chest') || workout.name.toLowerCase().includes('push')) {
-          recentMuscleGroups.push('chest', 'shoulders', 'triceps');
-        }
-        if (workout.name.toLowerCase().includes('back') || workout.name.toLowerCase().includes('pull')) {
-          recentMuscleGroups.push('back', 'biceps');
-        }
-        if (workout.name.toLowerCase().includes('leg') || workout.name.toLowerCase().includes('squat')) {
-          recentMuscleGroups.push('legs', 'glutes');
-        }
-      });
+      const { data, error } = await supabase
+        .from('workout_plans')
+        .update({
+          ...updates,
+          exercises: updates.exercises as any,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', planId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      let workoutType;
-      let focus: string[] = [];
-      let exercises: Exercise[] = [];
-      let duration = Math.min(maxTime, 45);
+      if (error) throw error;
 
-      // Smart workout selection logic
-      if (recentMuscleGroups.filter(g => g === 'chest').length >= 2) {
-        workoutType = recentMuscleGroups.filter(g => g === 'legs').length >= 2 ? 'Upper Back & Core' : 'Lower Body Strength';
-      } else if (recentMuscleGroups.filter(g => g === 'legs').length >= 2) {
-        workoutType = 'Upper Body Push';
-      } else if (workoutFrequency >= 4) {
-        workoutType = 'Active Recovery & Flexibility';
-      } else {
-        const types = ['Full Body Circuit', 'Upper Body Strength', 'Lower Body Power', 'Core & Cardio'];
-        workoutType = types[Math.floor(Math.random() * types.length)];
-      }
-
-      // Account for injuries
-      const hasBackIssues = activeInjuries.some(i => i.name.toLowerCase().includes('back')) || 
-                           limitations.toLowerCase().includes('back');
-      const hasKneeIssues = activeInjuries.some(i => i.name.toLowerCase().includes('knee')) || 
-                           limitations.toLowerCase().includes('knee');
-      const hasShoulderIssues = activeInjuries.some(i => i.name.toLowerCase().includes('shoulder')) || 
-                               limitations.toLowerCase().includes('shoulder');
-
-      // Generate exercises based on workout type and limitations
-      switch (workoutType) {
-        case 'Upper Body Push':
-          focus = ['Chest', 'Shoulders', 'Triceps'];
-          exercises = [
-            { 
-              name: hasShoulderIssues ? 'Wall Push-ups' : (hasBackIssues ? 'Incline Push-ups' : 'Push-ups'), 
-              sets: 3, reps: '10-12', rest: '60s', completed: false,
-              notes: hasShoulderIssues || hasBackIssues ? 'Modified for injury safety' : ''
-            },
-            { 
-              name: hasShoulderIssues ? 'Light Lateral Raises' : 'Shoulder Press', 
-              sets: 3, reps: '8-10', rest: '90s', completed: false 
-            },
-            { name: 'Tricep Dips', sets: 3, reps: '8-12', rest: '60s', completed: false },
-            { name: 'Chest Fly (Light)', sets: 2, reps: '12-15', rest: '60s', completed: false }
-          ];
-          break;
-
-        case 'Lower Body Power':
-          focus = ['Legs', 'Glutes'];
-          exercises = [
-            { 
-              name: hasKneeIssues ? 'Wall Sits' : 'Bodyweight Squats', 
-              sets: 3, reps: hasKneeIssues ? '30-45s' : '12-15', rest: '90s', completed: false,
-              notes: hasKneeIssues ? 'Modified for knee safety' : ''
-            },
-            { name: 'Glute Bridges', sets: 3, reps: '15-20', rest: '60s', completed: false },
-            { 
-              name: hasKneeIssues ? 'Standing Calf Raises' : 'Reverse Lunges', 
-              sets: 3, reps: '10 each leg', rest: '60s', completed: false 
-            },
-            { 
-              name: 'Single Leg Deadlifts', sets: 2, reps: '8 each leg', rest: '90s', completed: false,
-              notes: hasBackIssues ? 'Use light weight or bodyweight only' : ''
-            }
-          ];
-          break;
-
-        case 'Active Recovery & Flexibility':
-          focus = ['Recovery', 'Flexibility'];
-          duration = Math.min(maxTime, 30);
-          exercises = [
-            { name: 'Gentle Stretching Routine', sets: 1, reps: '10 min', rest: '0s', completed: false },
-            { name: 'Foam Rolling', sets: 1, reps: '5 min', rest: '0s', completed: false },
-            { name: 'Deep Breathing', sets: 3, reps: '2 min', rest: '30s', completed: false },
-            { name: 'Light Walking', sets: 1, reps: '10 min', rest: '0s', completed: false }
-          ];
-          break;
-
-        case 'Upper Back & Core':
-          focus = ['Back', 'Core'];
-          exercises = [
-            { name: 'Band Pull-Aparts', sets: 3, reps: '15-20', rest: '45s', completed: false },
-            { 
-              name: hasBackIssues ? 'Modified Plank' : 'Plank', 
-              sets: 3, reps: hasBackIssues ? '20-30s' : '30-60s', rest: '60s', completed: false 
-            },
-            { name: 'Reverse Fly', sets: 3, reps: '12-15', rest: '60s', completed: false },
-            { name: 'Dead Bug', sets: 2, reps: '10 each side', rest: '45s', completed: false }
-          ];
-          break;
-
-        default: // Full Body Circuit
-          focus = ['Full Body'];
-          exercises = [
-            { name: 'Jumping Jacks', sets: 3, reps: '30s', rest: '30s', completed: false },
-            { 
-              name: hasBackIssues ? 'Modified Burpees' : 'Burpees', 
-              sets: 2, reps: '5-8', rest: '90s', completed: false 
-            },
-            { name: 'Mountain Climbers', sets: 3, reps: '30s', rest: '30s', completed: false },
-            { name: 'Bodyweight Squats', sets: 3, reps: '12-15', rest: '60s', completed: false }
-          ];
-      }
-
-      // Adjust duration based on fitness level
-      if (fitnessLevel === 'beginner') {
-        duration = Math.min(maxTime, 25);
-      } else if (fitnessLevel === 'advanced' || fitnessLevel === 'expert') {
-        duration = Math.min(maxTime, 60);
-      }
-
-      const newWorkout: Workout = {
-        id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // Temporary ID
-        name: `${workoutType} - ${new Date().toLocaleDateString()}`,
-        duration,
-        difficulty: fitnessLevel,
-        focus,
-        exercises,
-        date: today,
-        status: 'scheduled',
-        generatedAt: new Date().toISOString(),
-        basedOnData: {
-          recentWorkouts: allRecentWorkouts.length,
-          activeInjuries: activeInjuries.length,
-          activeGoals: activeGoals.length
-        }
+      const updatedPlan: WorkoutPlan = {
+        ...data,
+        exercises: Array.isArray(data.exercises) 
+          ? (data.exercises as unknown as Exercise[])
+          : [],
+        scheduled_date: data.scheduled_date || new Date().toISOString().split('T')[0],
+        completed_date: data.completed_date || undefined
       };
 
-      // Remove existing workout for today if regenerating
-      if ((isRegenerate || forceGenerate) && existingTodayWorkout) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('id', existingTodayWorkout.id)
-          .eq('user_id', user?.id);
+      setWorkoutPlans(prev => prev.map(plan => 
+        plan.id === planId ? updatedPlan : plan
+      ));
 
-        setWorkouts(prev => prev.filter(w => w.id !== existingTodayWorkout.id));
+      if (currentWorkout && currentWorkout.id === planId) {
+        setCurrentWorkout(updatedPlan);
       }
 
-      // Save to database immediately
-      const savedWorkout = await saveWorkoutPlan(newWorkout);
-      setWorkouts(prev => [...prev.filter(w => w.id !== existingTodayWorkout?.id), savedWorkout]);
-
-      // Log activity
-      await logActivity(
-        'plan_generated',
-        `Generated ${workoutType.toLowerCase()} workout plan`,
-        { 
-          workoutType,
-          duration,
-          basedOnRecentWorkouts: allRecentWorkouts.length,
-          consideredInjuries: activeInjuries.length,
-          isRegenerate: isRegenerate || forceGenerate
-        }
-      );
-      
+      return updatedPlan;
+    } catch (error) {
+      console.error('Error updating workout plan:', error);
       toast({
-        title: isRegenerate || forceGenerate ? "Workout Regenerated!" : "Smart Workout Generated!",
-        description: `A ${duration}-minute ${workoutType.toLowerCase()} workout based on your recent activity and goals.`,
+        title: "Error",
+        description: "Failed to update workout plan. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const generateWorkout = async () => {
+    setIsGenerating(true);
+    try {
+      // Simulate AI workout generation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const workoutTypes = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'HIIT', 'Cardio Blast'];
+      const workoutType = workoutTypes[Math.floor(Math.random() * workoutTypes.length)];
+      
+      const exercises: Exercise[] = [
+        { name: 'Push-ups', sets: 3, reps: '12-15', rest: '60s', completed: false },
+        { name: 'Squats', sets: 3, reps: '15-20', rest: '60s', completed: false },
+        { name: 'Plank', sets: 3, reps: '30-45s', rest: '30s', completed: false },
+        { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '45s', completed: false },
+      ];
+
+      const newPlan = await saveWorkoutPlan({
+        name: workoutType,
+        description: `AI-generated ${workoutType} workout tailored to your fitness level`,
+        exercises,
+        duration_minutes: 45,
+        difficulty_level: 'Intermediate',
+        status: 'scheduled',
+        scheduled_date: new Date().toISOString().split('T')[0],
       });
 
-      setShowConfirmation(false);
+      setActiveTab("scheduled");
     } catch (error) {
       console.error('Error generating workout:', error);
-      toast({
-        title: "Generation Failed",
-        description: "Failed to generate workout plan. Please try again.",
-        variant: "destructive"
-      });
     } finally {
-      setGenerating(false);
+      setIsGenerating(false);
     }
   };
 
-  const handleConfirmGeneration = () => {
-    setShowConfirmation(false);
-    generateIntelligentWorkout(false, true);
-  };
-
-  const extendWorkout = async (workoutId: string) => {
-    if (!extendTime || isNaN(parseInt(extendTime))) {
-      toast({
-        title: "Invalid Time",
-        description: "Please enter a valid number of minutes to extend.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const additionalMinutes = parseInt(extendTime);
-    const workout = workouts.find(w => w.id === workoutId);
-    
-    if (!workout) return;
-
-    // Generate additional exercises based on the additional time
-    const additionalExercises: Exercise[] = [];
-    const baseExerciseCount = Math.floor(additionalMinutes / 10);
-    
-    const exercisePool = [
-      { name: 'Light Cardio', sets: 1, reps: `${Math.min(additionalMinutes, 15)} min`, rest: '0s' },
-      { name: 'Core Finisher', sets: 2, reps: '15-20', rest: '45s' },
-      { name: 'Stretching', sets: 1, reps: `${Math.min(additionalMinutes / 2, 10)} min`, rest: '0s' },
-      { name: 'Bodyweight Squats', sets: 2, reps: '10-15', rest: '60s' },
-      { name: 'Push-ups', sets: 2, reps: '8-12', rest: '60s' },
-      { name: 'Plank Hold', sets: 2, reps: '30-45s', rest: '60s' }
-    ];
-
-    if (additionalMinutes >= 5) {
-      for (let i = 0; i < Math.min(baseExerciseCount + 1, 3); i++) {
-        const exercise = exercisePool[i % exercisePool.length];
-        additionalExercises.push({
-          ...exercise,
-          completed: false,
-          notes: 'Extended workout exercise'
+  const startWorkout = async (plan: WorkoutPlan) => {
+    try {
+      const updatedPlan = await updateWorkoutPlan(plan.id, { status: 'in-progress' });
+      if (updatedPlan) {
+        setCurrentWorkout(updatedPlan);
+        setActiveTab("active");
+        await logActivity('workout_created', `Started workout: ${plan.name}`);
+        toast({
+          title: "Workout Started!",
+          description: `${plan.name} is now in progress.`,
         });
       }
-    }
-
-    const updatedWorkout = {
-      ...workout,
-      duration: workout.duration + additionalMinutes,
-      exercises: workout.status === 'completed' 
-        ? [...workout.exercises.map(ex => ({ ...ex, completed: false })), ...additionalExercises]
-        : [...workout.exercises, ...additionalExercises],
-      status: 'in-progress' as const
-    };
-
-    try {
-      await saveWorkoutPlan(updatedWorkout, true);
-      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
-      setActiveWorkout(workoutId);
-      setExtendingWorkout(null);
-      setExtendTime("");
-
-      await logActivity('workout_created', `Extended workout by ${additionalMinutes} minutes`, {
-        workoutId,
-        additionalMinutes,
-        addedExercises: additionalExercises.length
-      });
-
-      const statusMessage = workout.status === 'completed' 
-        ? "Extended completed workout - exercises reset and workout reactivated!"
-        : "Workout extended and activated!";
-
-      toast({
-        title: "Workout Extended!",
-        description: `${statusMessage} Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises.`,
-      });
-    } catch (error) {
-      console.error('Error extending workout:', error);
-      toast({
-        title: "Extension Failed",
-        description: "Failed to extend workout. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const startWorkout = async (workoutId: string) => {
-    const workout = workouts.find(w => w.id === workoutId);
-    if (!workout) return;
-
-    const updatedWorkout = { ...workout, status: "in-progress" as const };
-    
-    try {
-      await saveWorkoutPlan(updatedWorkout, true);
-      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
-      setActiveWorkout(workoutId);
-      
-      await logActivity('workout_created', 'Started workout session');
-      
-      toast({
-        title: "Workout Started!",
-        description: "Good luck with your training session!",
-      });
     } catch (error) {
       console.error('Error starting workout:', error);
-      toast({
-        title: "Start Failed",
-        description: "Failed to start workout. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
-  const completeExercise = async (workoutId: string, exerciseIndex: number) => {
-    const workout = workouts.find(w => w.id === workoutId);
-    if (!workout) return;
+  const completeExercise = async (exerciseIndex: number) => {
+    if (!currentWorkout) return;
 
-    const updatedExercises = [...workout.exercises];
-    updatedExercises[exerciseIndex].completed = !updatedExercises[exerciseIndex].completed;
-    
-    const updatedWorkout = { ...workout, exercises: updatedExercises };
+    const updatedExercises = [...currentWorkout.exercises];
+    updatedExercises[exerciseIndex].completed = true;
 
     try {
-      await saveWorkoutPlan(updatedWorkout, true);
-      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
-    } catch (error) {
-      console.error('Error updating exercise:', error);
-      toast({
-        title: "Update Failed",
-        description: "Failed to update exercise. Please try again.",
-        variant: "destructive"
+      const updatedPlan = await updateWorkoutPlan(currentWorkout.id, {
+        exercises: updatedExercises
       });
-    }
-  };
-
-  const finishWorkout = async (workoutId: string) => {
-    const workout = workouts.find(w => w.id === workoutId);
-    if (!workout) return;
-
-    const updatedWorkout = { ...workout, status: "completed" as const };
-
-    try {
-      await saveWorkoutPlan(updatedWorkout, true);
-      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
-      setActiveWorkout(null);
-
-      // Save completed workout to workouts table
-      if (user) {
-        await supabase.from('workouts').insert({
-          user_id: user.id,
-          name: workout.name,
-          duration_minutes: workout.duration,
-          workout_date: workout.date,
-          notes: `Completed: ${workout.exercises.filter(e => e.completed).length}/${workout.exercises.length} exercises`
-        });
-
-        await logActivity('workout_completed', `Completed ${workout.name}`, {
-          workoutName: workout.name,
-          duration: workout.duration,
-          completedExercises: workout.exercises.filter(e => e.completed).length
+      
+      if (updatedPlan) {
+        toast({
+          title: "Exercise Completed!",
+          description: `Great job on ${updatedExercises[exerciseIndex].name}!`,
         });
       }
-      
-      toast({
-        title: "Workout Completed!",
-        description: "Great job! Your progress has been saved.",
-      });
     } catch (error) {
-      console.error('Error finishing workout:', error);
-      toast({
-        title: "Completion Failed",
-        description: "Failed to complete workout. Please try again.",
-        variant: "destructive"
+      console.error('Error completing exercise:', error);
+    }
+  };
+
+  const extendWorkout = async () => {
+    if (!currentWorkout) return;
+
+    const additionalExercises: Exercise[] = [
+      { name: 'Burpees', sets: 2, reps: '8-10', rest: '90s', completed: false },
+      { name: 'Mountain Climbers', sets: 2, reps: '20', rest: '45s', completed: false },
+    ];
+
+    const updatedExercises = [...currentWorkout.exercises, ...additionalExercises];
+
+    try {
+      const updatedPlan = await updateWorkoutPlan(currentWorkout.id, {
+        exercises: updatedExercises,
+        duration_minutes: currentWorkout.duration_minutes + 15
       });
+
+      if (updatedPlan) {
+        toast({
+          title: "Workout Extended!",
+          description: "Added 2 more exercises to keep you going!",
+        });
+      }
+    } catch (error) {
+      console.error('Error extending workout:', error);
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "beginner": return "bg-green-100 text-green-800";
-      case "intermediate": return "bg-yellow-100 text-yellow-800";
-      case "advanced": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+  const completeWorkout = async () => {
+    if (!currentWorkout) return;
+
+    try {
+      const updatedPlan = await updateWorkoutPlan(currentWorkout.id, {
+        status: 'completed',
+        completed_date: new Date().toISOString().split('T')[0]
+      });
+
+      if (updatedPlan) {
+        setCurrentWorkout(null);
+        setActiveTab("completed");
+        await logActivity('workout_completed', `Completed workout: ${currentWorkout.name}`);
+        toast({
+          title: "Workout Complete!",
+          description: "Congratulations on finishing your workout!",
+        });
+      }
+    } catch (error) {
+      console.error('Error completing workout:', error);
     }
   };
 
-  const getWorkoutProgress = (workout: Workout) => {
-    const completedExercises = workout.exercises.filter(e => e.completed).length;
-    return (completedExercises / workout.exercises.length) * 100;
+  const getProgress = (exercises: Exercise[]) => {
+    const completed = exercises.filter(ex => ex.completed).length;
+    return (completed / exercises.length) * 100;
   };
 
-  // Get workouts by status and date
-  const todaysWorkouts = workouts.filter(w => w.date === new Date().toISOString().split('T')[0]);
-  const previousWorkouts = workouts.filter(w => w.date < new Date().toISOString().split('T')[0]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const scheduledPlans = workoutPlans.filter(plan => plan.status === 'scheduled');
+  const activePlans = workoutPlans.filter(plan => plan.status === 'in-progress');
+  const completedPlans = workoutPlans.filter(plan => plan.status === 'completed');
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Confirmation Dialog */}
-      {showConfirmation && (
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex flex-col space-y-3">
-            <span>You've already completed a workout today. Generate a new plan anyway?</span>
-            <div className="flex space-x-2">
-              <Button 
-                onClick={handleConfirmGeneration}
-                size="sm"
-                className="bg-orange-500 hover:bg-orange-600"
-              >
-                Yes, Generate New Plan
-              </Button>
-              <Button 
-                onClick={() => setShowConfirmation(false)}
-                variant="outline"
-                size="sm"
-              >
-                Cancel
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Workout Plans</h1>
+          <p className="text-gray-600 mt-1">AI-powered workout generation and tracking</p>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader className="px-4 sm:px-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-green-600 to-blue-500 p-2 rounded-lg">
-                <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-lg sm:text-xl">AI Workout Plans</CardTitle>
-                <CardDescription className="text-sm">
-                  Smart workouts based on your history, injuries, and goals
-                </CardDescription>
-              </div>
-            </div>
-            <Button 
-              onClick={() => generateIntelligentWorkout(false)}
-              disabled={generating}
-              className="bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-600"
-              size="sm"
-            >
-              {generating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
-                  <span className="hidden sm:inline">Generating...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Generate</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Data Overview Card */}
-      {(recentWorkouts.length > 0 || activeInjuries.length > 0 || activeGoals.length > 0) && (
-        <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">
-          <CardHeader className="px-4 sm:px-6 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">Your Data Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pt-0">
-            <div className="flex flex-wrap gap-2">
-              {recentWorkouts.length > 0 && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                  <History className="h-3 w-3 mr-1" />
-                  {recentWorkouts.length} recent workouts
-                </Badge>
-              )}
-              {activeInjuries.length > 0 && (
-                <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {activeInjuries.length} active injuries
-                </Badge>
-              )}
-              {activeGoals.length > 0 && (
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  <Zap className="h-3 w-3 mr-1" />
-                  {activeGoals.length} active goals
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs defaultValue="today" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+          <TabsTrigger value="generate" className="flex items-center space-x-2">
+            <Target className="h-4 w-4" />
+            <span>Generate</span>
+          </TabsTrigger>
+          <TabsTrigger value="scheduled" className="flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <span>Scheduled ({scheduledPlans.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center space-x-2">
+            <Dumbbell className="h-4 w-4" />
+            <span>Active ({activePlans.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="flex items-center space-x-2">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Completed ({completedPlans.length})</span>
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="today" className="space-y-4">
-          {todaysWorkouts.length === 0 ? (
-            <Card className="text-center py-8">
-              <CardContent className="px-4 sm:px-6">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50 text-gray-400" />
-                <p className="text-gray-500 mb-4">No workout planned for today</p>
-                <Button 
-                  onClick={() => generateIntelligentWorkout(false)} 
-                  disabled={generating}
-                  className="bg-gradient-to-r from-green-600 to-blue-500"
-                >
-                  {generating ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Generating Smart Workout...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Generate Smart Workout
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            todaysWorkouts.map((workout) => (
-              <Card key={workout.id} className="border-l-4 border-l-blue-500">
-                <CardHeader className="px-4 sm:px-6">
-                  <div className="flex items-center justify-between">
+        <TabsContent value="generate">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                <span>Generate New Workout</span>
+              </CardTitle>
+              <CardDescription>
+                Get a personalized workout plan based on your profile and goals
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={generateWorkout} 
+                disabled={isGenerating}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating Workout...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Generate Workout Plan
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="scheduled">
+          <div className="space-y-4">
+            {scheduledPlans.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No scheduled workouts</p>
+                  <p className="text-sm text-gray-500 mt-2">Generate a new workout to get started!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              scheduledPlans.map((plan) => (
+                <Card key={plan.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{plan.name}</CardTitle>
+                        <CardDescription>{plan.description}</CardDescription>
+                      </div>
+                      <Badge variant="secondary">{plan.difficulty_level}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <span className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          {plan.duration_minutes}min
+                        </span>
+                        <span className="flex items-center">
+                          <Dumbbell className="h-4 w-4 mr-1" />
+                          {plan.exercises.length} exercises
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      {plan.exercises.slice(0, 3).map((exercise, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span>{exercise.name}</span>
+                          <span className="text-gray-500">{exercise.sets} × {exercise.reps}</span>
+                        </div>
+                      ))}
+                      {plan.exercises.length > 3 && (
+                        <p className="text-sm text-gray-500">+{plan.exercises.length - 3} more exercises</p>
+                      )}
+                    </div>
+                    <Button onClick={() => startWorkout(plan)} className="w-full">
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Workout
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="active">
+          <div className="space-y-4">
+            {currentWorkout ? (
+              <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-                        <span>{workout.name}</span>
-                        <Badge className={getDifficultyColor(workout.difficulty)}>
-                          {workout.difficulty}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription className="flex items-center space-x-4 mt-2 text-xs sm:text-sm">
-                        <span className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span>{workout.duration} min</span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span>Today</span>
-                        </span>
-                        {workout.basedOnData && (
-                          <span className="text-blue-600 text-xs">
-                            Based on your data
-                          </span>
-                        )}
-                      </CardDescription>
+                      <CardTitle className="text-xl text-blue-800">{currentWorkout.name}</CardTitle>
+                      <CardDescription className="text-blue-600">{currentWorkout.description}</CardDescription>
                     </div>
-                    <div className="flex space-x-2">
-                      {(workout.status === 'scheduled' || workout.status === 'completed') && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                              <span className="hidden sm:inline">Extend</span>
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle>Extend Workout</DialogTitle>
-                              <DialogDescription>
-                                {workout.status === 'completed' 
-                                  ? "Add additional time to restart this completed workout. All exercises will be reset and the workout will become active again."
-                                  : "Add additional time to your workout. This will add extra exercises and mark the workout as active."
-                                }
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-4 items-center gap-4">
-                                <label htmlFor="extend-time" className="text-right text-sm font-medium">
-                                  Minutes
-                                </label>
-                                <Input
-                                  id="extend-time"
-                                  type="number"
-                                  placeholder="15"
-                                  value={extendTime}
-                                  onChange={(e) => setExtendTime(e.target.value)}
-                                  className="col-span-3"
-                                  min="5"
-                                  max="60"
-                                />
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button
-                                onClick={() => extendWorkout(workout.id)}
-                                className="bg-gradient-to-r from-green-600 to-blue-500"
-                                disabled={!extendTime || isNaN(parseInt(extendTime))}
-                              >
-                                {workout.status === 'completed' ? 'Extend & Restart Workout' : 'Extend & Start Workout'}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                      {workout.status === 'scheduled' && (
-                        <>
-                          <Button 
-                            onClick={() => generateIntelligentWorkout(true)}
-                            disabled={generating}
-                            variant="outline" 
-                            size="sm"
-                          >
-                            <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${generating ? 'animate-spin' : ''}`} />
-                            <span className="hidden sm:inline">Regenerate</span>
-                          </Button>
-                          <Button onClick={() => startWorkout(workout.id)} className="bg-gradient-to-r from-green-600 to-blue-500 hover:from-green-700 hover:to-blue-600" size="sm">
-                            <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">Start</span>
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Progress</Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="px-4 sm:px-6">
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {workout.focus.map((focus) => (
-                        <Badge key={focus} variant="secondary" className="text-xs">{focus}</Badge>
-                      ))}
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                      <span className="text-sm text-gray-600">
+                        {currentWorkout.exercises.filter(ex => ex.completed).length} / {currentWorkout.exercises.length}
+                      </span>
                     </div>
-                    
-                    {workout.basedOnData && (
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-xs text-blue-700 font-medium mb-1">Generated using:</p>
-                        <div className="flex flex-wrap gap-2 text-xs text-blue-600">
-                          <span>• {workout.basedOnData.recentWorkouts} recent workouts</span>
-                          {workout.basedOnData.activeInjuries > 0 && (
-                            <span>• {workout.basedOnData.activeInjuries} injury considerations</span>
-                          )}
-                          {workout.basedOnData.activeGoals > 0 && (
-                            <span>• {workout.basedOnData.activeGoals} active goals</span>
-                          )}
+                    <Progress value={getProgress(currentWorkout.exercises)} className="h-2" />
+                  </div>
+
+                  <div className="space-y-3">
+                    {currentWorkout.exercises.map((exercise, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`p-3 rounded-lg border ${
+                          exercise.completed 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className={`font-medium ${exercise.completed ? 'text-green-800 line-through' : 'text-gray-800'}`}>
+                              {exercise.name}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {exercise.sets} sets × {exercise.reps} | Rest: {exercise.rest}
+                            </p>
+                          </div>
+                          <Button
+                            onClick={() => completeExercise(idx)}
+                            disabled={exercise.completed}
+                            variant={exercise.completed ? "secondary" : "default"}
+                            size="sm"
+                          >
+                            {exercise.completed ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              "Complete"
+                            )}
+                          </Button>
                         </div>
                       </div>
-                    )}
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm sm:text-base">Exercises</h4>
-                      <div className="grid grid-cols-1 gap-2">
-                        {workout.exercises.map((exercise, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div>
-                              <span className="text-xs sm:text-sm font-medium">{exercise.name}</span>
-                              {exercise.notes && (
-                                <p className="text-xs text-blue-600 mt-1">💡 {exercise.notes}</p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-600">{exercise.sets} × {exercise.reps}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+
+                  <div className="flex space-x-2 pt-4">
+                    <Button onClick={extendWorkout} variant="outline" className="flex-1">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Extend Workout
+                    </Button>
+                    <Button 
+                      onClick={completeWorkout}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Complete Workout
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="active" className="space-y-4">
-          {workouts.filter(w => w.status === "in-progress").map((workout) => (
-            <Card key={workout.id} className="border-l-4 border-l-orange-500">
-              <CardHeader className="px-4 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-                      <span>{workout.name}</span>
-                      <Badge className="bg-orange-100 text-orange-800">In Progress</Badge>
-                    </CardTitle>
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-xs sm:text-sm mb-1">
-                        <span>Progress</span>
-                        <span>{Math.round(getWorkoutProgress(workout))}%</span>
-                      </div>
-                      <Progress value={getWorkoutProgress(workout)} className="h-2" />
-                    </div>
-                  </div>
-                  <Button onClick={() => finishWorkout(workout.id)} variant="outline" size="sm">
-                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Finish</span>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 sm:px-6">
-                <div className="space-y-3">
-                  {workout.exercises.map((exercise, index) => (
-                    <div key={index} className={`p-3 rounded-lg border ${exercise.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-                      <div className="flex items-center space-x-3">
-                        <Button
-                          size="sm"
-                          variant={exercise.completed ? "default" : "outline"}
-                          onClick={() => completeExercise(workout.id, index)}
-                          className={exercise.completed ? "bg-green-600 hover:bg-green-700" : ""}
-                        >
-                          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                        <div className="flex-1">
-                          <h5 className={`font-medium text-sm sm:text-base ${exercise.completed ? 'line-through text-gray-600' : ''}`}>
-                            {exercise.name}
-                          </h5>
-                          <p className="text-xs sm:text-sm text-gray-600">
-                            {exercise.sets} sets × {exercise.reps} | Rest: {exercise.rest}
-                          </p>
-                          {exercise.notes && (
-                            <p className="text-xs text-blue-600 mt-1">💡 {exercise.notes}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          {workouts.filter(w => w.status === "in-progress").length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Play className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No active workouts. Start a scheduled workout to begin training!</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          {previousWorkouts.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No previous workouts yet. Complete your first workout to see history!</p>
-            </div>
-          ) : (
-            previousWorkouts.map((workout) => (
-              <Card key={workout.id} className={`border-l-4 ${workout.status === 'completed' ? 'border-l-green-500' : 'border-l-gray-300'}`}>
-                <CardHeader className="px-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-                        <span>{workout.name}</span>
-                        <Badge className={workout.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                          {workout.status === 'completed' ? 'Completed' : 'Missed'}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription className="flex items-center space-x-4 mt-2 text-xs sm:text-sm">
-                        <span className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span>{new Date(workout.date).toLocaleDateString()}</span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span>{workout.duration} min</span>
-                        </span>
-                      </CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">Repeat</span>
+            ) : activePlans.length > 0 ? (
+              activePlans.map((plan) => (
+                <Card key={plan.id} className="border-blue-200">
+                  <CardHeader>
+                    <CardTitle>{plan.name}</CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={() => setCurrentWorkout(plan)} className="w-full">
+                      <Play className="h-4 w-4 mr-2" />
+                      Resume Workout
                     </Button>
-                  </div>
-                </CardHeader>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No active workouts</p>
+                  <p className="text-sm text-gray-500 mt-2">Start a scheduled workout to begin tracking!</p>
+                </CardContent>
               </Card>
-            ))
-          )}
+            )}
+          </div>
         </TabsContent>
 
-        <TabsContent value="completed" className="space-y-4">
-          {workouts.filter(w => w.status === "completed").map((workout) => (
-            <Card key={workout.id} className="border-l-4 border-l-green-500">
-              <CardHeader className="px-4 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
-                      <span>{workout.name}</span>
-                      <Badge className="bg-green-100 text-green-800">Completed</Badge>
-                    </CardTitle>
-                    <CardDescription className="flex items-center space-x-4 mt-2 text-xs sm:text-sm">
-                      <span className="flex items-center space-x-1">
-                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
-                        <span>100% Complete</span>
+        <TabsContent value="completed">
+          <div className="space-y-4">
+            {completedPlans.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <CheckCircle2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No completed workouts yet</p>
+                  <p className="text-sm text-gray-500 mt-2">Complete your first workout to see it here!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              completedPlans.map((plan) => (
+                <Card key={plan.id} className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-green-800">{plan.name}</CardTitle>
+                        <CardDescription className="text-green-600">
+                          Completed on {new Date(plan.completed_date!).toLocaleDateString()}
+                        </CardDescription>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Completed
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-4 text-sm text-green-700">
+                      <span className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {plan.duration_minutes}min
                       </span>
-                      <span className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                        <span>{new Date(workout.date).toLocaleDateString()}</span>
+                      <span className="flex items-center">
+                        <Dumbbell className="h-4 w-4 mr-1" />
+                        {plan.exercises.length} exercises
                       </span>
-                    </CardDescription>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                          <span className="hidden sm:inline">Extend</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Extend Completed Workout</DialogTitle>
-                          <DialogDescription>
-                            Add additional time to restart this completed workout. All exercises will be reset and the workout will become active again.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="extend-time" className="text-right text-sm font-medium">
-                              Minutes
-                            </label>
-                            <Input
-                              id="extend-time"
-                              type="number"
-                              placeholder="15"
-                              value={extendTime}
-                              onChange={(e) => setExtendTime(e.target.value)}
-                              className="col-span-3"
-                              min="5"
-                              max="60"
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            onClick={() => extendWorkout(workout.id)}
-                            className="bg-gradient-to-r from-green-600 to-blue-500"
-                            disabled={!extendTime || isNaN(parseInt(extendTime))}
-                          >
-                            Extend & Restart Workout
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    <Button variant="outline" size="sm">
-                      <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">Repeat</span>
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-          
-          {workouts.filter(w => w.status === "completed").length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No completed workouts yet. Finish your first workout to see it here!</p>
-            </div>
-          )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, LogOut, User, Heart, Target, AlertTriangle } from "lucide-react";
+import { TrendingUp, LogOut, User, Heart, Target, AlertTriangle, Crown } from "lucide-react";
 import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
@@ -10,13 +10,43 @@ import WorkoutPlan from "@/components/WorkoutPlan";
 import RecentActivity from "@/components/RecentActivity";
 import Insights from "@/components/Insights";
 import QuickStats from "@/components/QuickStats";
+import SubscriptionManager from "@/components/SubscriptionManager";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
+  const { subscriptionInfo, checkSubscriptionStatus } = useSubscription();
+
+  // Check for subscription success/cancellation in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subscription = urlParams.get('subscription');
+    
+    if (subscription === 'success') {
+      toast({
+        title: "Welcome to Gym Tuner Pro!",
+        description: "Your subscription is now active. Enjoy unlimited AI workouts!",
+      });
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Refresh subscription status
+      setTimeout(() => {
+        checkSubscriptionStatus();
+      }, 2000);
+    } else if (subscription === 'cancelled') {
+      toast({
+        title: "Subscription Cancelled",
+        description: "No worries! You can subscribe anytime.",
+        variant: "destructive",
+      });
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [toast, checkSubscriptionStatus]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -36,6 +66,7 @@ const Index = () => {
     { value: "injuries", label: "Injuries", icon: AlertTriangle },
     { value: "goals", label: "Goals", icon: Target },
     { value: "workouts", label: "Workouts", icon: Heart },
+    { value: "subscription", label: "Subscription", icon: Crown },
   ];
 
   return (
@@ -51,7 +82,12 @@ const Index = () => {
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
               />
               <div>
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Gym Tuner</h1>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Gym Tuner</h1>
+                  {subscriptionInfo?.subscribed && (
+                    <Crown className="h-4 w-4 text-yellow-500" />
+                  )}
+                </div>
                 <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, {getUserDisplayName()}</p>
               </div>
             </div>
@@ -76,7 +112,7 @@ const Index = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
           {/* Desktop Tab Navigation - Hidden on mobile */}
           <div className="hidden md:block bg-white rounded-lg shadow-sm p-1">
-            <TabsList className="grid grid-cols-5 w-full bg-transparent gap-1">
+            <TabsList className="grid grid-cols-6 w-full bg-transparent gap-1">
               {tabItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -119,6 +155,10 @@ const Index = () => {
           <TabsContent value="workouts">
             <WorkoutPlan />
           </TabsContent>
+
+          <TabsContent value="subscription">
+            <SubscriptionManager />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -138,7 +178,12 @@ const Index = () => {
                     : 'text-gray-500 hover:text-blue-600'
                 }`}
               >
-                <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : ''}`} />
+                <div className="relative">
+                  <Icon className={`h-6 w-6 ${isActive ? 'text-blue-600' : ''}`} />
+                  {item.value === 'subscription' && subscriptionInfo?.subscribed && (
+                    <Crown className="h-3 w-3 text-yellow-500 absolute -top-1 -right-1" />
+                  )}
+                </div>
                 <span className="text-xs mt-1 font-medium">{item.label}</span>
               </button>
             );
