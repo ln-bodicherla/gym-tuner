@@ -13,14 +13,12 @@ import SubscriptionManager from "@/components/SubscriptionManager";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
   const { subscriptionInfo, checkSubscriptionStatus, loading, initialCheckComplete } = useSubscription();
-  const isMobile = useIsMobile();
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
@@ -196,9 +194,9 @@ const Index = () => {
         </Tabs>
       </div>
 
-      {/* Mobile Bottom Navigation - Improved spacing and alignment */}
+      {/* Mobile Bottom Navigation - Fixed single row layout */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className={`${isMobile ? 'grid grid-cols-3 grid-rows-2 gap-0' : 'grid grid-cols-6'} py-1`}>
+        <div className="flex justify-around py-2">
           {tabItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.value;
@@ -207,7 +205,7 @@ const Index = () => {
               <button
                 key={item.value}
                 onClick={() => setActiveTab(item.value)}
-                className={`flex flex-col items-center justify-center py-2 px-1 transition-colors duration-200 ${
+                className={`flex flex-col items-center justify-center px-3 py-2 min-w-0 flex-1 transition-colors duration-200 ${
                   isActive 
                     ? 'text-blue-600' 
                     : 'text-gray-500 hover:text-blue-600'
@@ -219,7 +217,7 @@ const Index = () => {
                     <Crown className="h-2 w-2 text-yellow-500 absolute -top-0.5 -right-0.5" />
                   )}
                 </div>
-                <span className="text-xs font-medium leading-none">{item.label}</span>
+                <span className="text-[10px] font-medium leading-none truncate">{item.label}</span>
               </button>
             );
           })}
