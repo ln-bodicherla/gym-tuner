@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -409,7 +410,7 @@ const WorkoutPlan = () => {
     setExtendingWorkout(null);
     setExtendTime("");
 
-    await logActivity('workout_extended', `Extended workout by ${additionalMinutes} minutes`, {
+    await logActivity('workout_created', `Extended workout by ${additionalMinutes} minutes`, {
       workoutId,
       additionalMinutes,
       addedExercises: additionalExercises.length
