@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -393,13 +392,17 @@ const WorkoutPlan = () => {
       }
     }
 
-    // Update the workout
+    // Update the workout - reset completion status for completed workouts
     setWorkouts(prev => prev.map(w => {
       if (w.id === workoutId) {
+        const updatedExercises = workout.status === 'completed' 
+          ? [...w.exercises.map(ex => ({ ...ex, completed: false })), ...additionalExercises]
+          : [...w.exercises, ...additionalExercises];
+        
         return {
           ...w,
           duration: w.duration + additionalMinutes,
-          exercises: [...w.exercises, ...additionalExercises],
+          exercises: updatedExercises,
           status: 'in-progress' as const
         };
       }
@@ -416,9 +419,13 @@ const WorkoutPlan = () => {
       addedExercises: additionalExercises.length
     });
 
+    const statusMessage = workout.status === 'completed' 
+      ? "Extended completed workout - exercises reset and workout reactivated!"
+      : "Workout extended and activated!";
+
     toast({
       title: "Workout Extended!",
-      description: `Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises. Workout is now active.`,
+      description: `${statusMessage} Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises.`,
     });
   };
 
@@ -664,50 +671,55 @@ const WorkoutPlan = () => {
                       </CardDescription>
                     </div>
                     <div className="flex space-x-2">
+                      {(workout.status === 'scheduled' || workout.status === 'completed') && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                              <span className="hidden sm:inline">Extend</span>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Extend Workout</DialogTitle>
+                              <DialogDescription>
+                                {workout.status === 'completed' 
+                                  ? "Add additional time to restart this completed workout. All exercises will be reset and the workout will become active again."
+                                  : "Add additional time to your workout. This will add extra exercises and mark the workout as active."
+                                }
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                              <div className="grid grid-cols-4 items-center gap-4">
+                                <label htmlFor="extend-time" className="text-right text-sm font-medium">
+                                  Minutes
+                                </label>
+                                <Input
+                                  id="extend-time"
+                                  type="number"
+                                  placeholder="15"
+                                  value={extendTime}
+                                  onChange={(e) => setExtendTime(e.target.value)}
+                                  className="col-span-3"
+                                  min="5"
+                                  max="60"
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button
+                                onClick={() => extendWorkout(workout.id)}
+                                className="bg-gradient-to-r from-green-600 to-blue-500"
+                                disabled={!extendTime || isNaN(parseInt(extendTime))}
+                              >
+                                {workout.status === 'completed' ? 'Extend & Restart Workout' : 'Extend & Start Workout'}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                       {workout.status === 'scheduled' && (
                         <>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                                <span className="hidden sm:inline">Extend</span>
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>Extend Workout</DialogTitle>
-                                <DialogDescription>
-                                  Add additional time to your workout. This will add extra exercises and mark the workout as active.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                  <label htmlFor="extend-time" className="text-right text-sm font-medium">
-                                    Minutes
-                                  </label>
-                                  <Input
-                                    id="extend-time"
-                                    type="number"
-                                    placeholder="15"
-                                    value={extendTime}
-                                    onChange={(e) => setExtendTime(e.target.value)}
-                                    className="col-span-3"
-                                    min="5"
-                                    max="60"
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button
-                                  onClick={() => extendWorkout(workout.id)}
-                                  className="bg-gradient-to-r from-green-600 to-blue-500"
-                                  disabled={!extendTime || isNaN(parseInt(extendTime))}
-                                >
-                                  Extend & Start Workout
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
                           <Button 
                             onClick={() => generateIntelligentWorkout(true)}
                             disabled={generating}
@@ -897,10 +909,54 @@ const WorkoutPlan = () => {
                       </span>
                     </CardDescription>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Repeat</span>
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <PlusCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Extend</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Extend Completed Workout</DialogTitle>
+                          <DialogDescription>
+                            Add additional time to restart this completed workout. All exercises will be reset and the workout will become active again.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="extend-time" className="text-right text-sm font-medium">
+                              Minutes
+                            </label>
+                            <Input
+                              id="extend-time"
+                              type="number"
+                              placeholder="15"
+                              value={extendTime}
+                              onChange={(e) => setExtendTime(e.target.value)}
+                              className="col-span-3"
+                              min="5"
+                              max="60"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            onClick={() => extendWorkout(workout.id)}
+                            className="bg-gradient-to-r from-green-600 to-blue-500"
+                            disabled={!extendTime || isNaN(parseInt(extendTime))}
+                          >
+                            Extend & Restart Workout
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" size="sm">
+                      <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Repeat</span>
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
             </Card>
