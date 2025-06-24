@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Play, CheckCircle, RotateCcw, Calendar, Zap, Plus, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Exercise {
   name: string;
@@ -30,17 +32,42 @@ interface Workout {
 
 const WorkoutPlan = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load user profile and workouts on component mount
+  // Load user profile from Supabase
   useEffect(() => {
-    const profile = localStorage.getItem('userProfile');
-    if (profile) {
-      setUserProfile(JSON.parse(profile));
+    if (user) {
+      loadUserProfile();
     }
+  }, [user]);
 
+  const loadUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load workouts from localStorage
+  useEffect(() => {
     const savedWorkouts = localStorage.getItem('workoutPlans');
     if (savedWorkouts) {
       setWorkouts(JSON.parse(savedWorkouts));
@@ -53,6 +80,7 @@ const WorkoutPlan = () => {
   }, [workouts]);
 
   const generateDailyWorkout = () => {
+    // Check if user profile exists and has basic information
     if (!userProfile) {
       toast({
         title: "Profile Required",
@@ -62,8 +90,18 @@ const WorkoutPlan = () => {
       return;
     }
 
-    const maxTime = parseInt(userProfile.maxWorkoutTime) || 60;
-    const fitnessLevel = userProfile.fitnessLevel || 'intermediate';
+    // More lenient profile validation - only require fitness level
+    if (!userProfile.fitness_level) {
+      toast({
+        title: "Profile Incomplete",
+        description: "Please set your fitness level in your profile to generate workouts.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const maxTime = parseInt(userProfile.max_workout_time) || 60;
+    const fitnessLevel = userProfile.fitness_level || 'intermediate';
     const limitations = userProfile.limitations || '';
     
     // Check if there's already a workout for today
@@ -200,6 +238,14 @@ const WorkoutPlan = () => {
   // Get workouts by status and date
   const todaysWorkouts = workouts.filter(w => w.date === new Date().toISOString().split('T')[0]);
   const previousWorkouts = workouts.filter(w => w.date < new Date().toISOString().split('T')[0]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">

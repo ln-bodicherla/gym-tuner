@@ -58,7 +58,7 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <img 
-                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" 
+                src="/lovable-uploads/5e825f2e-98c7-4e9c-87a9-1b104539f992.png" 
                 alt="Gym Tuner Logo" 
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
               />
