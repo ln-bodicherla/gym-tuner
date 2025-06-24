@@ -62,6 +62,11 @@ const UserProfile = () => {
           fitness_level: profileData.fitness_level || "",
           preferred_time: profileData.preferred_time?.toString() || "",
           max_workout_time: profileData.max_workout_time?.toString() || "",
+          min_workout_time: profileData.min_workout_time?.toString() || "",
+          weekly_goal: profileData.weekly_goal?.toString() || "",
+          experience_years: profileData.experience_years?.toString() || "",
+          preferred_workout_types: profileData.preferred_workout_types || "",
+          availability: profileData.availability || "",
           preferences: profileData.preferences || "",
           limitations: profileData.limitations || ""
         }));
@@ -84,6 +89,11 @@ const UserProfile = () => {
           fitness_level: profile.fitness_level,
           preferred_time: profile.preferred_time ? parseInt(profile.preferred_time) : null,
           max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
+          min_workout_time: profile.min_workout_time ? parseInt(profile.min_workout_time) : null,
+          weekly_goal: profile.weekly_goal ? parseInt(profile.weekly_goal) : null,
+          experience_years: profile.experience_years ? parseInt(profile.experience_years) : null,
+          preferred_workout_types: profile.preferred_workout_types,
+          availability: profile.availability,
           preferences: profile.preferences,
           limitations: profile.limitations,
           updated_at: new Date().toISOString()
