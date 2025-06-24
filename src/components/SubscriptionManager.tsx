@@ -3,13 +3,16 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 
 const SubscriptionManager = () => {
   const [loading, setLoading] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
   const { subscriptionInfo, checkSubscriptionStatus } = useSubscription();
 
@@ -118,6 +121,65 @@ const SubscriptionManager = () => {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    setCancellingSubscription(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to cancel your subscription.",
+          variant: "destructive",
+        });
+        setCancellingSubscription(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        body: { userId: user.id }
+      });
+
+      if (error) {
+        console.error('Cancel error:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to cancel subscription. Please try again.",
+          variant: "destructive",
+        });
+        setCancellingSubscription(false);
+        return;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Subscription Cancelled",
+          description: "Your subscription has been cancelled. You'll continue to have access until the end of your current billing period.",
+        });
+        setShowCancelDialog(false);
+        // Refresh subscription status
+        setTimeout(() => {
+          checkSubscriptionStatus();
+        }, 2000);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to cancel subscription. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Cancel error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
   const proFeatures = [
     { icon: Zap, text: "Unlimited AI-generated workouts" },
     { icon: TrendingUp, text: "Advanced progress analytics" },
@@ -165,15 +227,61 @@ const SubscriptionManager = () => {
                   <p className="text-gray-600">Plan</p>
                   <p className="font-medium">Monthly Pro ($9.99/month)</p>
                 </div>
+                {subscriptionInfo.subscription_end && (
+                  <div className="sm:col-span-2">
+                    <p className="text-gray-600">Next billing date</p>
+                    <p className="font-medium">{new Date(subscriptionInfo.subscription_end).toLocaleDateString()}</p>
+                  </div>
+                )}
               </div>
-              <Button 
-                onClick={handleManageSubscription}
-                disabled={loading}
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                {loading ? "Loading..." : "Manage Subscription"}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleManageSubscription}
+                  disabled={loading}
+                  variant="outline"
+                  className="flex-1 sm:flex-none"
+                >
+                  {loading ? "Loading..." : "Manage Subscription"}
+                </Button>
+                <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      Cancel Subscription
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center space-x-2">
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                        <span>Cancel Subscription</span>
+                      </DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to cancel your Gym Tuner Pro subscription? 
+                        You'll continue to have access to all features until the end of your current billing period.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowCancelDialog(false)}
+                        disabled={cancellingSubscription}
+                      >
+                        Keep Subscription
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleCancelSubscription}
+                        disabled={cancellingSubscription}
+                      >
+                        {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -246,7 +354,7 @@ const SubscriptionManager = () => {
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
             >
               <Crown className="h-5 w-5 mr-2" />
-              {loading ? "Processing..." : "Start Free Trial"}
+              {loading ? "Processing..." : "Subscribe Now"}
             </Button>
             <p className="text-xs text-gray-500">
               Cancel anytime. No commitments.
