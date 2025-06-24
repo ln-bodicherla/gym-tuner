@@ -100,13 +100,13 @@ const ActivityPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="px-4 py-4 sm:px-6 sm:py-8 max-w-4xl mx-auto">
+        <div className="px-3 py-4 sm:px-6 sm:py-8 max-w-4xl mx-auto">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Activity History</CardTitle>
+            <CardHeader className="px-4 sm:px-6">
+              <CardTitle className="text-xl sm:text-2xl">Activity History</CardTitle>
               <CardDescription>All your activities and achievements</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
@@ -119,69 +119,75 @@ const ActivityPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="px-4 py-4 sm:px-6 sm:py-8 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:px-6 sm:py-8 max-w-4xl mx-auto">
         <Card>
-          <CardHeader>
-            <div className="flex items-center gap-4">
+          <CardHeader className="px-4 sm:px-6">
+            <div className="flex items-center gap-2 sm:gap-4 mb-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 text-sm"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to Dashboard
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Back</span>
               </Button>
             </div>
-            <CardTitle className="text-2xl">Activity History</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Activity History</CardTitle>
+            <CardDescription className="text-sm">
               All your activities and achievements ({activities.length} total)
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             {activities.length === 0 ? (
               <div className="text-center py-12">
-                <Activity className="h-16 w-16 mx-auto text-gray-400 mb-6" />
-                <p className="text-xl text-gray-500 mb-2">No activity yet</p>
-                <p className="text-gray-400">Start using the app to see your activity here</p>
+                <Activity className="h-12 sm:h-16 w-12 sm:w-16 mx-auto text-gray-400 mb-4 sm:mb-6" />
+                <p className="text-lg sm:text-xl text-gray-500 mb-2">No activity yet</p>
+                <p className="text-sm text-gray-400">Start using the app to see your activity here</p>
               </div>
             ) : (
               <>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {currentActivities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors"
+                      className="flex items-start gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors"
                     >
-                      <div className="flex items-center space-x-4 min-w-0 flex-1">
-                        <div className={`bg-gradient-to-r ${getActivityColor(activity.activity_type)} p-3 rounded-full flex-shrink-0`}>
-                          <div className="text-white">
-                            {getActivityIcon(activity.activity_type)}
-                          </div>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-base truncate">
-                            {activity.description}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {formatTimeAgo(activity.created_at)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(activity.created_at).toLocaleString()}
-                          </p>
+                      <div className={`bg-gradient-to-r ${getActivityColor(activity.activity_type)} p-2 sm:p-3 rounded-full flex-shrink-0 mt-0.5`}>
+                        <div className="text-white">
+                          {getActivityIcon(activity.activity_type)}
                         </div>
                       </div>
-                      <Badge variant="secondary" className="flex-shrink-0 ml-4 capitalize">
-                        {activity.activity_type.replace('_', ' ')}
-                      </Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm sm:text-base leading-tight">
+                              {activity.description}
+                            </p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                {formatTimeAgo(activity.created_at)}
+                              </p>
+                              <span className="hidden sm:inline text-gray-400">•</span>
+                              <p className="text-xs text-gray-500">
+                                {new Date(activity.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="text-xs capitalize self-start sm:self-center flex-shrink-0 mt-1 sm:mt-0">
+                            {activity.activity_type.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="mt-8">
+                  <div className="mt-6 sm:mt-8">
                     <Pagination>
-                      <PaginationContent>
+                      <PaginationContent className="flex-wrap justify-center gap-1">
                         <PaginationItem>
                           <PaginationPrevious 
                             href="#"
@@ -189,7 +195,7 @@ const ActivityPage = () => {
                               e.preventDefault();
                               if (currentPage > 1) handlePageChange(currentPage - 1);
                             }}
-                            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            className={`text-xs sm:text-sm ${currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
                           />
                         </PaginationItem>
                         
@@ -208,7 +214,7 @@ const ActivityPage = () => {
                                     handlePageChange(page);
                                   }}
                                   isActive={currentPage === page}
-                                  className="cursor-pointer"
+                                  className="cursor-pointer text-xs sm:text-sm min-w-[32px] sm:min-w-[36px]"
                                 >
                                   {page}
                                 </PaginationLink>
@@ -219,7 +225,7 @@ const ActivityPage = () => {
                             page === currentPage + 2
                           ) {
                             return (
-                              <PaginationItem key={page}>
+                              <PaginationItem key={page} className="hidden sm:block">
                                 <PaginationEllipsis />
                               </PaginationItem>
                             );
@@ -234,7 +240,7 @@ const ActivityPage = () => {
                               e.preventDefault();
                               if (currentPage < totalPages) handlePageChange(currentPage + 1);
                             }}
-                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            className={`text-xs sm:text-sm ${currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
                           />
                         </PaginationItem>
                       </PaginationContent>
