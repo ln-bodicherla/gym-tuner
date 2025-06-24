@@ -30,6 +30,11 @@ const UserProfile = () => {
     fitness_level: "",
     preferred_time: "",
     max_workout_time: "",
+    min_workout_time: "",
+    weekly_goal: "",
+    experience_years: "",
+    preferred_workout_types: "",
+    availability: "",
     preferences: "",
     limitations: ""
   });
@@ -283,6 +288,52 @@ const UserProfile = () => {
             </div>
           </div>
 
+          {/* Additional Fitness Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="min_workout_time">Minimum Workout Time (min)</Label>
+              {isEditing ? (
+                <Input
+                  id="min_workout_time"
+                  type="number"
+                  placeholder="15"
+                  value={profile.min_workout_time}
+                  onChange={(e) => setProfile({...profile, min_workout_time: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.min_workout_time ? `${profile.min_workout_time} minutes` : 'Not set'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="weekly_goal">Weekly Workout Goal</Label>
+              {isEditing ? (
+                <Input
+                  id="weekly_goal"
+                  type="number"
+                  placeholder="4"
+                  value={profile.weekly_goal}
+                  onChange={(e) => setProfile({...profile, weekly_goal: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.weekly_goal ? `${profile.weekly_goal} times per week` : 'Not set'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="experience_years">Years of Experience</Label>
+              {isEditing ? (
+                <Input
+                  id="experience_years"
+                  type="number"
+                  placeholder="2"
+                  value={profile.experience_years}
+                  onChange={(e) => setProfile({...profile, experience_years: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.experience_years ? `${profile.experience_years} years` : 'Not set'}</p>
+              )}
+            </div>
+          </div>
+
           {/* Additional Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -317,17 +368,49 @@ const UserProfile = () => {
             </div>
           </div>
 
+          {/* Workout Preferences */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="preferred_workout_types">Preferred Workout Types</Label>
+              {isEditing ? (
+                <Textarea
+                  id="preferred_workout_types"
+                  rows={3}
+                  value={profile.preferred_workout_types}
+                  onChange={(e) => setProfile({...profile, preferred_workout_types: e.target.value})}
+                  placeholder="e.g., Strength training, cardio, yoga, swimming..."
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.preferred_workout_types || 'Not specified'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="availability">Availability</Label>
+              {isEditing ? (
+                <Textarea
+                  id="availability"
+                  rows={3}
+                  value={profile.availability}
+                  onChange={(e) => setProfile({...profile, availability: e.target.value})}
+                  placeholder="e.g., Morning person, evenings after work, weekend warrior..."
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.availability || 'Not specified'}</p>
+              )}
+            </div>
+          </div>
+
           {/* Preferences and Limitations */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="preferences">Workout Preferences</Label>
+              <Label htmlFor="preferences">Additional Preferences</Label>
               {isEditing ? (
                 <Textarea
                   id="preferences"
                   rows={3}
                   value={profile.preferences}
                   onChange={(e) => setProfile({...profile, preferences: e.target.value})}
-                  placeholder="e.g., Strength training, cardio, yoga..."
+                  placeholder="e.g., Music preferences, equipment preferences..."
                 />
               ) : (
                 <p className="text-sm text-gray-600">{profile.preferences || 'Not specified'}</p>
