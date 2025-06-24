@@ -59,6 +59,7 @@ const WorkoutPlan = () => {
   useEffect(() => {
     if (user) {
       loadUserData();
+      loadWorkoutPlans();
     }
   }, [user]);
 
@@ -106,18 +107,88 @@ const WorkoutPlan = () => {
     }
   };
 
-  // Load workouts from localStorage
-  useEffect(() => {
-    const savedWorkouts = localStorage.getItem('workoutPlans');
-    if (savedWorkouts) {
-      setWorkouts(JSON.parse(savedWorkouts));
-    }
-  }, []);
+  const loadWorkoutPlans = async () => {
+    try {
+      const { data: workoutPlans, error } = await supabase
+        .from('workout_plans')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
-  // Save workouts to localStorage whenever workouts change
-  useEffect(() => {
-    localStorage.setItem('workoutPlans', JSON.stringify(workouts));
-  }, [workouts]);
+      if (error) throw error;
+
+      // Transform database format to component format
+      const transformedWorkouts = workoutPlans?.map(plan => ({
+        id: plan.id,
+        name: plan.name,
+        duration: plan.duration_minutes || 0,
+        difficulty: plan.difficulty_level || 'intermediate',
+        focus: [], // Will be derived from exercises
+        exercises: plan.exercises as Exercise[] || [],
+        date: plan.scheduled_date || new Date().toISOString().split('T')[0],
+        status: plan.status as "scheduled" | "in-progress" | "completed",
+        generatedAt: plan.created_at || new Date().toISOString(),
+        basedOnData: plan.description ? JSON.parse(plan.description) : undefined
+      })) || [];
+
+      setWorkouts(transformedWorkouts);
+
+      // Find active workout
+      const activeWorkoutPlan = transformedWorkouts.find(w => w.status === 'in-progress');
+      if (activeWorkoutPlan) {
+        setActiveWorkout(activeWorkoutPlan.id);
+      }
+    } catch (error) {
+      console.error('Error loading workout plans:', error);
+      toast({
+        title: "Error Loading Workouts",
+        description: "Failed to load your workout plans. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const saveWorkoutPlan = async (workout: Workout, isUpdate = false) => {
+    try {
+      const workoutPlanData = {
+        user_id: user?.id,
+        name: workout.name,
+        description: workout.basedOnData ? JSON.stringify(workout.basedOnData) : null,
+        exercises: workout.exercises,
+        duration_minutes: workout.duration,
+        difficulty_level: workout.difficulty,
+        status: workout.status,
+        scheduled_date: workout.date,
+        completed_date: workout.status === 'completed' ? workout.date : null
+      };
+
+      if (isUpdate) {
+        const { error } = await supabase
+          .from('workout_plans')
+          .update(workoutPlanData)
+          .eq('id', workout.id)
+          .eq('user_id', user?.id);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('workout_plans')
+          .insert(workoutPlanData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local state with the new ID from database
+        workout.id = data.id;
+      }
+
+      return workout;
+    } catch (error) {
+      console.error('Error saving workout plan:', error);
+      throw error;
+    }
+  };
 
   const generateIntelligentWorkout = async (isRegenerate = false, forceGenerate = false) => {
     if (generating) return;
@@ -161,7 +232,7 @@ const WorkoutPlan = () => {
       const fitnessLevel = userProfile.fitness_level || 'intermediate';
       const limitations = userProfile.limitations || '';
       
-      // Analyze recent workout patterns - include completed workouts from localStorage
+      // Analyze recent workout patterns
       const allRecentWorkouts = [...recentWorkouts];
       const completedLocalWorkouts = workouts.filter(w => w.status === 'completed' && w.date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
       allRecentWorkouts.push(...completedLocalWorkouts.map(w => ({ name: w.name, workout_date: w.date })));
@@ -292,7 +363,7 @@ const WorkoutPlan = () => {
       }
 
       const newWorkout: Workout = {
-        id: `workout_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // Temporary ID
         name: `${workoutType} - ${new Date().toLocaleDateString()}`,
         duration,
         difficulty: fitnessLevel,
@@ -310,10 +381,18 @@ const WorkoutPlan = () => {
 
       // Remove existing workout for today if regenerating
       if ((isRegenerate || forceGenerate) && existingTodayWorkout) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('id', existingTodayWorkout.id)
+          .eq('user_id', user?.id);
+
         setWorkouts(prev => prev.filter(w => w.id !== existingTodayWorkout.id));
       }
 
-      setWorkouts(prev => [...prev, newWorkout]);
+      // Save to database immediately
+      const savedWorkout = await saveWorkoutPlan(newWorkout);
+      setWorkouts(prev => [...prev.filter(w => w.id !== existingTodayWorkout?.id), savedWorkout]);
 
       // Log activity
       await logActivity(
@@ -368,9 +447,8 @@ const WorkoutPlan = () => {
 
     // Generate additional exercises based on the additional time
     const additionalExercises: Exercise[] = [];
-    const baseExerciseCount = Math.floor(additionalMinutes / 10); // Roughly 10 minutes per exercise
+    const baseExerciseCount = Math.floor(additionalMinutes / 10);
     
-    // Simple exercise pool for extensions
     const exercisePool = [
       { name: 'Light Cardio', sets: 1, reps: `${Math.min(additionalMinutes, 15)} min`, rest: '0s' },
       { name: 'Core Finisher', sets: 2, reps: '15-20', rest: '45s' },
@@ -380,7 +458,6 @@ const WorkoutPlan = () => {
       { name: 'Plank Hold', sets: 2, reps: '30-45s', rest: '60s' }
     ];
 
-    // Add exercises based on available time
     if (additionalMinutes >= 5) {
       for (let i = 0; i < Math.min(baseExerciseCount + 1, 3); i++) {
         const exercise = exercisePool[i % exercisePool.length];
@@ -392,78 +469,108 @@ const WorkoutPlan = () => {
       }
     }
 
-    // Update the workout - reset completion status for completed workouts
-    setWorkouts(prev => prev.map(w => {
-      if (w.id === workoutId) {
-        const updatedExercises = workout.status === 'completed' 
-          ? [...w.exercises.map(ex => ({ ...ex, completed: false })), ...additionalExercises]
-          : [...w.exercises, ...additionalExercises];
-        
-        return {
-          ...w,
-          duration: w.duration + additionalMinutes,
-          exercises: updatedExercises,
-          status: 'in-progress' as const
-        };
-      }
-      return w;
-    }));
+    const updatedWorkout = {
+      ...workout,
+      duration: workout.duration + additionalMinutes,
+      exercises: workout.status === 'completed' 
+        ? [...workout.exercises.map(ex => ({ ...ex, completed: false })), ...additionalExercises]
+        : [...workout.exercises, ...additionalExercises],
+      status: 'in-progress' as const
+    };
 
-    setActiveWorkout(workoutId);
-    setExtendingWorkout(null);
-    setExtendTime("");
+    try {
+      await saveWorkoutPlan(updatedWorkout, true);
+      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
+      setActiveWorkout(workoutId);
+      setExtendingWorkout(null);
+      setExtendTime("");
 
-    await logActivity('workout_created', `Extended workout by ${additionalMinutes} minutes`, {
-      workoutId,
-      additionalMinutes,
-      addedExercises: additionalExercises.length
-    });
+      await logActivity('workout_created', `Extended workout by ${additionalMinutes} minutes`, {
+        workoutId,
+        additionalMinutes,
+        addedExercises: additionalExercises.length
+      });
 
-    const statusMessage = workout.status === 'completed' 
-      ? "Extended completed workout - exercises reset and workout reactivated!"
-      : "Workout extended and activated!";
+      const statusMessage = workout.status === 'completed' 
+        ? "Extended completed workout - exercises reset and workout reactivated!"
+        : "Workout extended and activated!";
 
-    toast({
-      title: "Workout Extended!",
-      description: `${statusMessage} Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises.`,
-    });
+      toast({
+        title: "Workout Extended!",
+        description: `${statusMessage} Added ${additionalMinutes} minutes and ${additionalExercises.length} exercises.`,
+      });
+    } catch (error) {
+      console.error('Error extending workout:', error);
+      toast({
+        title: "Extension Failed",
+        description: "Failed to extend workout. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const startWorkout = async (workoutId: string) => {
-    setActiveWorkout(workoutId);
-    setWorkouts(workouts.map(w => 
-      w.id === workoutId ? { ...w, status: "in-progress" as const } : w
-    ));
+    const workout = workouts.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    const updatedWorkout = { ...workout, status: "in-progress" as const };
     
-    await logActivity('workout_created', 'Started workout session');
-    
-    toast({
-      title: "Workout Started!",
-      description: "Good luck with your training session!",
-    });
+    try {
+      await saveWorkoutPlan(updatedWorkout, true);
+      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
+      setActiveWorkout(workoutId);
+      
+      await logActivity('workout_created', 'Started workout session');
+      
+      toast({
+        title: "Workout Started!",
+        description: "Good luck with your training session!",
+      });
+    } catch (error) {
+      console.error('Error starting workout:', error);
+      toast({
+        title: "Start Failed",
+        description: "Failed to start workout. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const completeExercise = (workoutId: string, exerciseIndex: number) => {
-    setWorkouts(workouts.map(workout => {
-      if (workout.id === workoutId) {
-        const updatedExercises = [...workout.exercises];
-        updatedExercises[exerciseIndex].completed = !updatedExercises[exerciseIndex].completed;
-        return { ...workout, exercises: updatedExercises };
-      }
-      return workout;
-    }));
+  const completeExercise = async (workoutId: string, exerciseIndex: number) => {
+    const workout = workouts.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    const updatedExercises = [...workout.exercises];
+    updatedExercises[exerciseIndex].completed = !updatedExercises[exerciseIndex].completed;
+    
+    const updatedWorkout = { ...workout, exercises: updatedExercises };
+
+    try {
+      await saveWorkoutPlan(updatedWorkout, true);
+      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
+    } catch (error) {
+      console.error('Error updating exercise:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update exercise. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const finishWorkout = async (workoutId: string) => {
     const workout = workouts.find(w => w.id === workoutId);
-    setWorkouts(workouts.map(w => 
-      w.id === workoutId ? { ...w, status: "completed" as const } : w
-    ));
-    setActiveWorkout(null);
+    if (!workout) return;
 
-    // Save completed workout to Supabase
-    if (workout && user) {
-      try {
+    const updatedWorkout = { ...workout, status: "completed" as const };
+
+    try {
+      await saveWorkoutPlan(updatedWorkout, true);
+      setWorkouts(prev => prev.map(w => w.id === workoutId ? updatedWorkout : w));
+      setActiveWorkout(null);
+
+      // Save completed workout to workouts table
+      if (user) {
         await supabase.from('workouts').insert({
           user_id: user.id,
           name: workout.name,
@@ -477,15 +584,20 @@ const WorkoutPlan = () => {
           duration: workout.duration,
           completedExercises: workout.exercises.filter(e => e.completed).length
         });
-      } catch (error) {
-        console.error('Error saving workout:', error);
       }
+      
+      toast({
+        title: "Workout Completed!",
+        description: "Great job! Your progress has been saved.",
+      });
+    } catch (error) {
+      console.error('Error finishing workout:', error);
+      toast({
+        title: "Completion Failed",
+        description: "Failed to complete workout. Please try again.",
+        variant: "destructive"
+      });
     }
-    
-    toast({
-      title: "Workout Completed!",
-      description: "Great job! Your progress has been saved.",
-    });
   };
 
   const getDifficultyColor = (difficulty: string) => {
