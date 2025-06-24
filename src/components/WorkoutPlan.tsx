@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock } from "lucide-react";
+import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useSubscription } from "@/hooks/useSubscription";
+import SubscriptionCard from "./SubscriptionCard";
+import LockedFeature from "./LockedFeature";
 
 interface Exercise {
   name: string;
@@ -317,6 +319,11 @@ const WorkoutPlan = () => {
   const activePlans = workoutPlans.filter(plan => plan.status === 'in-progress');
   const completedPlans = workoutPlans.filter(plan => plan.status === 'completed');
 
+  const handleUpgradeClick = () => {
+    // Dispatch custom event to navigate to subscription tab
+    window.dispatchEvent(new CustomEvent('upgrade-to-pro'));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -330,8 +337,11 @@ const WorkoutPlan = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Workout Plans</h1>
-          <p className="text-gray-600 mt-1">AI-powered workout generation and tracking</p>
+          <p className="text-gray-600 mt-1">AI-powered workout generation and analytics</p>
         </div>
+        {hasAccess() && (
+          <SubscriptionCard hasAccess={true} onUpgrade={handleUpgradeClick} compact={true} />
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -356,58 +366,111 @@ const WorkoutPlan = () => {
         </TabsList>
 
         <TabsContent value="generate">
-          <Card className={!hasAccess() ? "border-orange-200 bg-orange-50" : ""}>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Target className="h-5 w-5 text-blue-600" />
-                <span>Generate New Workout</span>
-                {!hasAccess() && <Crown className="h-4 w-4 text-yellow-500" />}
-              </CardTitle>
-              <CardDescription>
-                {hasAccess() 
-                  ? "Get a personalized workout plan based on your profile and goals"
-                  : "Upgrade to Pro to unlock AI-generated workout plans"
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!hasAccess() ? (
-                <div className="text-center py-8">
-                  <Lock className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-orange-800 mb-2">Pro Feature</h3>
-                  <p className="text-orange-700 mb-4">
-                    AI workout generation is available with Gym Tuner Pro subscription.
-                  </p>
+          <div className="space-y-6">
+            {!hasAccess() ? (
+              <LockedFeature
+                title="AI Workout Generation"
+                description="Get personalized workout plans based on your profile and goals"
+                icon={<Target className="h-4 w-4 sm:h-5 sm:w-5 text-white" />}
+                onUpgrade={handleUpgradeClick}
+              />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Target className="h-5 w-5 text-blue-600" />
+                    <span>Generate New Workout</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Get a personalized workout plan based on your profile and goals
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <Button 
-                    onClick={() => setActiveTab("subscription")}
-                    className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+                    onClick={generateWorkout} 
+                    disabled={isGenerating}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    size="lg"
                   >
-                    <Crown className="h-4 w-4 mr-2" />
-                    Upgrade to Pro
+                    {isGenerating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Generating Workout...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Generate Workout Plan
+                      </>
+                    )}
                   </Button>
-                </div>
-              ) : (
-                <Button 
-                  onClick={generateWorkout} 
-                  disabled={isGenerating}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  size="lg"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Generating Workout...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Generate Workout Plan
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* AI Insights Section */}
+            {!hasAccess() ? (
+              <LockedFeature
+                title="AI Insights & Analytics"
+                description="Get personalized analytics and recommendations"
+                icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />}
+                onUpgrade={handleUpgradeClick}
+              />
+            ) : (
+              <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+                <CardHeader>
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-500 p-2 rounded-lg">
+                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg sm:text-xl">AI Insights</CardTitle>
+                      <CardDescription className="text-sm">
+                        Personalized analytics and recommendations
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <div className="grid grid-cols-3 gap-4 mb-6 opacity-30">
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 rounded-lg">
+                          <BarChart3 className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-xs text-gray-500">Progress</div>
+                      </div>
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="bg-gradient-to-r from-green-500 to-green-600 p-3 rounded-lg">
+                          <PieChart className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-xs text-gray-500">Analysis</div>
+                      </div>
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-3 rounded-lg">
+                          <LineChart className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-xs text-gray-500">Trends</div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-6 border border-blue-200 shadow-sm">
+                      <h3 className="text-2xl font-bold text-gray-800 mb-2">Coming Soon</h3>
+                      <p className="text-gray-600 mb-4">
+                        AI-powered insights to help you understand your fitness journey better
+                      </p>
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>• Workout performance analytics</p>
+                        <p>• Goal achievement predictions</p>
+                        <p>• Personalized recommendations</p>
+                        <p>• Progress tracking & trends</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="scheduled">
