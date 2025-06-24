@@ -215,6 +215,40 @@ const WorkoutPlan = () => {
     }
   };
 
+  const extendCompletedWorkout = async (plan: WorkoutPlan) => {
+    const additionalExercises: Exercise[] = [
+      { name: 'Burpees', sets: 2, reps: '8-10', rest: '90s', completed: false },
+      { name: 'Mountain Climbers', sets: 2, reps: '20', rest: '45s', completed: false },
+    ];
+
+    const updatedExercises = [...plan.exercises, ...additionalExercises];
+
+    try {
+      const updatedPlan = await updateWorkoutPlan(plan.id, {
+        exercises: updatedExercises,
+        duration_minutes: plan.duration_minutes + 15,
+        status: 'in-progress' // Change status back to in-progress since we're extending
+      });
+
+      if (updatedPlan) {
+        setCurrentWorkout(updatedPlan);
+        setActiveTab("active");
+        await logActivity('workout_extended', `Extended completed workout: ${plan.name}`);
+        toast({
+          title: "Workout Extended!",
+          description: "Added 2 more exercises and moved to active workouts!",
+        });
+      }
+    } catch (error) {
+      console.error('Error extending completed workout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to extend workout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const generateWorkout = async () => {
     if (!hasAccess()) {
       toast({
@@ -750,14 +784,24 @@ const WorkoutPlan = () => {
                           Completed on {new Date(plan.completed_date!).toLocaleDateString()}
                         </CardDescription>
                       </div>
-                      <Badge className="bg-green-100 text-green-800 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Completed
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Completed
+                        </Badge>
+                        <Button
+                          onClick={() => deleteWorkoutPlan(plan.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center space-x-4 text-sm text-green-700">
+                    <div className="flex items-center space-x-4 text-sm text-green-700 mb-4">
                       <span className="flex items-center">
                         <Clock className="h-4 w-4 mr-1" />
                         {plan.duration_minutes}min
@@ -767,6 +811,13 @@ const WorkoutPlan = () => {
                         {plan.exercises.length} exercises
                       </span>
                     </div>
+                    <Button 
+                      onClick={() => extendCompletedWorkout(plan)}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Extend & Restart Workout
+                    </Button>
                   </CardContent>
                 </Card>
               ))
