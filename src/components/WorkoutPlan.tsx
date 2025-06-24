@@ -47,6 +47,23 @@ const WorkoutPlan = () => {
     }
   }, [user]);
 
+  const normalizeWorkoutPlanData = (data: any): WorkoutPlan => {
+    return {
+      ...data,
+      exercises: Array.isArray(data.exercises) 
+        ? (data.exercises as unknown as Exercise[])
+        : [],
+      scheduled_date: data.scheduled_date || new Date().toISOString().split('T')[0],
+      completed_date: data.completed_date || undefined,
+      status: (data.status === 'scheduled' || data.status === 'in-progress' || data.status === 'completed') 
+        ? data.status 
+        : 'scheduled',
+      description: data.description || '',
+      difficulty_level: data.difficulty_level || 'Intermediate',
+      duration_minutes: data.duration_minutes || 45
+    };
+  };
+
   const loadWorkoutPlans = async () => {
     if (!user) return;
     
@@ -60,15 +77,7 @@ const WorkoutPlan = () => {
 
       if (error) throw error;
 
-      const formattedPlans: WorkoutPlan[] = (data || []).map(plan => ({
-        ...plan,
-        exercises: Array.isArray(plan.exercises) 
-          ? (plan.exercises as unknown as Exercise[])
-          : [],
-        scheduled_date: plan.scheduled_date || new Date().toISOString().split('T')[0],
-        completed_date: plan.completed_date || undefined
-      }));
-
+      const formattedPlans: WorkoutPlan[] = (data || []).map(normalizeWorkoutPlanData);
       setWorkoutPlans(formattedPlans);
     } catch (error) {
       console.error('Error loading workout plans:', error);
@@ -104,15 +113,7 @@ const WorkoutPlan = () => {
 
       if (error) throw error;
 
-      const newPlan: WorkoutPlan = {
-        ...data,
-        exercises: Array.isArray(data.exercises) 
-          ? (data.exercises as unknown as Exercise[])
-          : [],
-        scheduled_date: data.scheduled_date || new Date().toISOString().split('T')[0],
-        completed_date: data.completed_date || undefined
-      };
-
+      const newPlan: WorkoutPlan = normalizeWorkoutPlanData(data);
       setWorkoutPlans(prev => [newPlan, ...prev]);
       await logActivity('plan_generated', `Generated new workout plan: ${planData.name}`);
       
@@ -151,14 +152,7 @@ const WorkoutPlan = () => {
 
       if (error) throw error;
 
-      const updatedPlan: WorkoutPlan = {
-        ...data,
-        exercises: Array.isArray(data.exercises) 
-          ? (data.exercises as unknown as Exercise[])
-          : [],
-        scheduled_date: data.scheduled_date || new Date().toISOString().split('T')[0],
-        completed_date: data.completed_date || undefined
-      };
+      const updatedPlan: WorkoutPlan = normalizeWorkoutPlanData(data);
 
       setWorkoutPlans(prev => prev.map(plan => 
         plan.id === planId ? updatedPlan : plan
