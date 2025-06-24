@@ -10,6 +10,7 @@ import { Target, Plus, Trash2, Trophy, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivityLogger } from "@/hooks/useActivityLogger";
 
 interface Goal {
   id: string;
@@ -18,17 +19,25 @@ interface Goal {
   target_date: string;
   achieved_date?: string;
   status: string;
+  target_value?: number;
+  current_value?: number;
+  unit?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const GoalManager = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { logActivity } = useActivityLogger();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [newGoal, setNewGoal] = useState({
     title: "",
     target_date: "",
-    description: ""
+    description: "",
+    target_value: "",
+    unit: ""
   });
 
   // Fetch goals from database
@@ -71,23 +80,32 @@ const GoalManager = () => {
     }
 
     try {
+      const goalData = {
+        user_id: user.id,
+        title: newGoal.title,
+        description: newGoal.description,
+        target_date: newGoal.target_date || null,
+        status: 'active',
+        target_value: newGoal.target_value ? parseFloat(newGoal.target_value) : null,
+        current_value: 0,
+        unit: newGoal.unit || null
+      };
+
       const { error } = await supabase
         .from('goals')
-        .insert({
-          user_id: user.id,
-          title: newGoal.title,
-          description: newGoal.description,
-          target_date: newGoal.target_date || null,
-          status: 'active'
-        });
+        .insert(goalData);
 
       if (error) throw error;
 
       setNewGoal({
         title: "",
         target_date: "",
-        description: ""
+        description: "",
+        target_value: "",
+        unit: ""
       });
+
+      await logActivity('goal_created', `Created goal: ${newGoal.title}`);
 
       toast({
         title: "Goal Added",
@@ -106,16 +124,24 @@ const GoalManager = () => {
   };
 
   const handleAchieveGoal = async (goalId: string) => {
+    if (!user) return;
+
     try {
       const { error } = await supabase
         .from('goals')
         .update({
           status: 'achieved',
-          achieved_date: new Date().toISOString().split('T')[0]
+          achieved_date: new Date().toISOString().split('T')[0],
+          updated_at: new Date().toISOString()
         })
         .eq('id', goalId);
 
       if (error) throw error;
+
+      const goal = goals.find(g => g.id === goalId);
+      if (goal) {
+        await logActivity('goal_updated', `Achieved goal: ${goal.title}`);
+      }
 
       toast({
         title: "Congratulations! 🎉",
@@ -134,13 +160,21 @@ const GoalManager = () => {
   };
 
   const handleRemoveGoal = async (goalId: string) => {
+    if (!user) return;
+
     try {
+      const goal = goals.find(g => g.id === goalId);
+      
       const { error } = await supabase
         .from('goals')
         .delete()
         .eq('id', goalId);
 
       if (error) throw error;
+
+      if (goal) {
+        await logActivity('goal_deleted', `Deleted goal: ${goal.title}`);
+      }
 
       toast({
         title: "Goal Removed",
@@ -153,6 +187,41 @@ const GoalManager = () => {
       toast({
         title: "Error",
         description: "Failed to remove goal",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateGoalProgress = async (goalId: string, currentValue: number) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .update({
+          current_value: currentValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', goalId);
+
+      if (error) throw error;
+
+      const goal = goals.find(g => g.id === goalId);
+      if (goal) {
+        await logActivity('goal_updated', `Updated progress for goal: ${goal.title}`);
+      }
+
+      toast({
+        title: "Progress Updated",
+        description: "Goal progress has been updated successfully.",
+      });
+
+      fetchGoals();
+    } catch (error) {
+      console.error('Error updating goal progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update goal progress",
         variant: "destructive"
       });
     }
@@ -208,6 +277,28 @@ const GoalManager = () => {
                   />
                 </div>
                 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="target_value">Target Value</Label>
+                    <Input
+                      id="target_value"
+                      type="number"
+                      placeholder="e.g., 5"
+                      value={newGoal.target_value}
+                      onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="unit">Unit</Label>
+                    <Input
+                      id="unit"
+                      placeholder="e.g., km, lbs, reps"
+                      value={newGoal.unit}
+                      onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
+                    />
+                  </div>
+                </div>
+                
                 <div>
                   <Label htmlFor="target_date">Target Date</Label>
                   <Input
@@ -261,6 +352,27 @@ const GoalManager = () => {
                                   <Trophy className="h-4 w-4 text-yellow-500" />
                                 )}
                               </div>
+
+                              {goal.target_value && (
+                                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
+                                  <span>Progress: {goal.current_value || 0} / {goal.target_value} {goal.unit}</span>
+                                  {goal.status === 'active' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const newValue = prompt(`Enter current value for ${goal.title}:`);
+                                        if (newValue && !isNaN(parseFloat(newValue))) {
+                                          updateGoalProgress(goal.id, parseFloat(newValue));
+                                        }
+                                      }}
+                                      className="text-xs px-2 py-1 h-6"
+                                    >
+                                      Update
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                           
@@ -290,7 +402,7 @@ const GoalManager = () => {
                                 onClick={() => handleAchieveGoal(goal.id)}
                               >
                                 <Trophy className="h-3 w-3 mr-1" />
-                                Achieved
+                                Mark Achieved
                               </Button>
                             )}
                             <Button 

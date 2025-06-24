@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,34 +9,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Plus, Calendar, MapPin, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useActivityLogger } from "@/hooks/useActivityLogger";
 
 interface Injury {
   id: string;
-  bodyPart: string;
-  severity: string;
-  description: string;
-  date: string;
+  name: string;
   status: string;
+  notes: string;
+  start_date: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const InjuryTracker = () => {
   const { toast } = useToast();
-  const [injuries, setInjuries] = useState<Injury[]>([
-    {
-      id: "1",
-      bodyPart: "Lower Back",
-      severity: "mild",
-      description: "Slight discomfort during deadlifts",
-      date: "2024-01-15",
-      status: "active"
-    }
-  ]);
+  const { user } = useAuth();
+  const { logActivity } = useActivityLogger();
+  const [injuries, setInjuries] = useState<Injury[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [newInjury, setNewInjury] = useState({
-    bodyPart: "",
-    severity: "",
-    description: "",
-    date: new Date().toISOString().split('T')[0]
+    name: "",
+    status: "active",
+    notes: "",
+    start_date: new Date().toISOString().split('T')[0]
   });
 
   const [editingInjury, setEditingInjury] = useState<string | null>(null);
@@ -54,34 +52,81 @@ const InjuryTracker = () => {
     { value: "severe", label: "Severe", color: "bg-red-100 text-red-800" }
   ];
 
-  const handleAddInjury = () => {
-    if (!newInjury.bodyPart || !newInjury.severity) {
+  // Load injuries from database
+  const loadInjuries = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('injuries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInjuries(data || []);
+    } catch (error) {
+      console.error('Error loading injuries:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load injuries.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInjuries();
+  }, [user]);
+
+  const handleAddInjury = async () => {
+    if (!user || !newInjury.name.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in injury name.",
         variant: "destructive"
       });
       return;
     }
 
-    const injury: Injury = {
-      id: Date.now().toString(),
-      ...newInjury,
-      status: "active"
-    };
+    try {
+      const { error } = await supabase
+        .from('injuries')
+        .insert({
+          user_id: user.id,
+          name: newInjury.name,
+          status: newInjury.status,
+          notes: newInjury.notes,
+          start_date: newInjury.start_date
+        });
 
-    setInjuries([...injuries, injury]);
-    setNewInjury({
-      bodyPart: "",
-      severity: "",
-      description: "",
-      date: new Date().toISOString().split('T')[0]
-    });
+      if (error) throw error;
 
-    toast({
-      title: "Injury Added",
-      description: "Injury has been recorded and will be considered in your workout plans.",
-    });
+      setNewInjury({
+        name: "",
+        status: "active",
+        notes: "",
+        start_date: new Date().toISOString().split('T')[0]
+      });
+
+      await logActivity('injury_added', `Added injury: ${newInjury.name}`);
+      
+      toast({
+        title: "Injury Added",
+        description: "Injury has been recorded and will be considered in your workout plans.",
+      });
+
+      loadInjuries();
+    } catch (error) {
+      console.error('Error adding injury:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add injury.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditInjury = (injury: Injury) => {
@@ -89,29 +134,51 @@ const InjuryTracker = () => {
     setEditData({ ...injury });
   };
 
-  const handleSaveEdit = () => {
-    if (!editData) return;
+  const handleSaveEdit = async () => {
+    if (!editData || !user) return;
 
-    if (!editData.bodyPart || !editData.severity) {
+    if (!editData.name.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in injury name.",
         variant: "destructive"
       });
       return;
     }
 
-    setInjuries(injuries.map(injury => 
-      injury.id === editData.id ? editData : injury
-    ));
+    try {
+      const { error } = await supabase
+        .from('injuries')
+        .update({
+          name: editData.name,
+          status: editData.status,
+          notes: editData.notes,
+          start_date: editData.start_date,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editData.id);
 
-    setEditingInjury(null);
-    setEditData(null);
+      if (error) throw error;
 
-    toast({
-      title: "Injury Updated",
-      description: "Injury details have been updated successfully.",
-    });
+      setEditingInjury(null);
+      setEditData(null);
+
+      await logActivity('injury_updated', `Updated injury: ${editData.name}`);
+
+      toast({
+        title: "Injury Updated",
+        description: "Injury details have been updated successfully.",
+      });
+
+      loadInjuries();
+    } catch (error) {
+      console.error('Error updating injury:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update injury.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelEdit = () => {
@@ -119,21 +186,86 @@ const InjuryTracker = () => {
     setEditData(null);
   };
 
-  const handleUpdateStatus = (id: string, status: string) => {
-    setInjuries(injuries.map(injury => 
-      injury.id === id ? { ...injury, status } : injury
-    ));
-    
-    toast({
-      title: "Status Updated",
-      description: `Injury status has been updated to ${status}.`,
-    });
+  const handleUpdateStatus = async (id: string, status: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('injuries')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const injury = injuries.find(i => i.id === id);
+      if (injury) {
+        await logActivity('injury_updated', `Marked injury "${injury.name}" as ${status}`);
+      }
+      
+      toast({
+        title: "Status Updated",
+        description: `Injury status has been updated to ${status}.`,
+      });
+
+      loadInjuries();
+    } catch (error) {
+      console.error('Error updating injury status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update injury status.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteInjury = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const injury = injuries.find(i => i.id === id);
+      
+      const { error } = await supabase
+        .from('injuries')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      if (injury) {
+        await logActivity('injury_deleted', `Deleted injury: ${injury.name}`);
+      }
+
+      toast({
+        title: "Injury Deleted",
+        description: "Injury has been removed successfully.",
+      });
+
+      loadInjuries();
+    } catch (error) {
+      console.error('Error deleting injury:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete injury.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getSeverityColor = (severity: string) => {
     const level = severityLevels.find(l => l.value === severity);
     return level?.color || "bg-gray-100 text-gray-800";
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -153,16 +285,16 @@ const InjuryTracker = () => {
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           <div className="space-y-6">
-            {/* Mobile-First: Report New Injury Section */}
+            {/* Report New Injury Section */}
             <div className="space-y-4">
               <h3 className="font-semibold text-base sm:text-lg">Report New Injury</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Body Part *</Label>
-                  <Select value={newInjury.bodyPart} onValueChange={(value) => setNewInjury({...newInjury, bodyPart: value})}>
+                  <Label className="text-sm font-medium">Body Part / Injury Name *</Label>
+                  <Select value={newInjury.name} onValueChange={(value) => setNewInjury({...newInjury, name: value})}>
                     <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Select body part" />
+                      <SelectValue placeholder="Select body part or enter custom" />
                     </SelectTrigger>
                     <SelectContent>
                       {bodyParts.map((part) => (
@@ -172,43 +304,47 @@ const InjuryTracker = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Input
+                    placeholder="Or enter custom injury name"
+                    value={newInjury.name}
+                    onChange={(e) => setNewInjury({...newInjury, name: e.target.value})}
+                    className="h-10"
+                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Severity *</Label>
-                  <Select value={newInjury.severity} onValueChange={(value) => setNewInjury({...newInjury, severity: value})}>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Select value={newInjury.status} onValueChange={(value) => setNewInjury({...newInjury, status: value})}>
                     <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Select severity" />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {severityLevels.map((level) => (
-                        <SelectItem key={level.value} value={level.value}>
-                          {level.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="recovering">Recovering</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+                <Label htmlFor="date" className="text-sm font-medium">Start Date</Label>
                 <Input
                   id="date"
                   type="date"
-                  value={newInjury.date}
-                  onChange={(e) => setNewInjury({...newInjury, date: e.target.value})}
+                  value={newInjury.start_date}
+                  onChange={(e) => setNewInjury({...newInjury, start_date: e.target.value})}
                   className="h-10"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                <Label htmlFor="description" className="text-sm font-medium">Notes</Label>
                 <Textarea
                   id="description"
                   placeholder="Describe the injury and any relevant details"
-                  value={newInjury.description}
-                  onChange={(e) => setNewInjury({...newInjury, description: e.target.value})}
+                  value={newInjury.notes}
+                  onChange={(e) => setNewInjury({...newInjury, notes: e.target.value})}
                   className="min-h-[80px] resize-none"
                 />
               </div>
@@ -236,58 +372,45 @@ const InjuryTracker = () => {
                         {editingInjury === injury.id && editData ? (
                           // Edit Mode
                           <div className="space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Body Part *</Label>
-                                <Select value={editData.bodyPart} onValueChange={(value) => setEditData({...editData, bodyPart: value})}>
-                                  <SelectTrigger className="h-10">
-                                    <SelectValue placeholder="Select body part" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {bodyParts.map((part) => (
-                                      <SelectItem key={part} value={part}>
-                                        {part}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Severity *</Label>
-                                <Select value={editData.severity} onValueChange={(value) => setEditData({...editData, severity: value})}>
-                                  <SelectTrigger className="h-10">
-                                    <SelectValue placeholder="Select severity" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {severityLevels.map((level) => (
-                                      <SelectItem key={level.value} value={level.value}>
-                                        {level.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            
                             <div className="space-y-2">
-                              <Label htmlFor={`edit-date-${injury.id}`} className="text-sm font-medium">Date</Label>
+                              <Label className="text-sm font-medium">Injury Name *</Label>
                               <Input
-                                id={`edit-date-${injury.id}`}
-                                type="date"
-                                value={editData.date}
-                                onChange={(e) => setEditData({...editData, date: e.target.value})}
+                                value={editData.name}
+                                onChange={(e) => setEditData({...editData, name: e.target.value})}
                                 className="h-10"
                               />
                             </div>
                             
                             <div className="space-y-2">
-                              <Label htmlFor={`edit-description-${injury.id}`} className="text-sm font-medium">Description</Label>
+                              <Label className="text-sm font-medium">Status</Label>
+                              <Select value={editData.status} onValueChange={(value) => setEditData({...editData, status: value})}>
+                                <SelectTrigger className="h-10">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="recovering">Recovering</SelectItem>
+                                  <SelectItem value="resolved">Resolved</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Start Date</Label>
+                              <Input
+                                type="date"
+                                value={editData.start_date}
+                                onChange={(e) => setEditData({...editData, start_date: e.target.value})}
+                                className="h-10"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Notes</Label>
                               <Textarea
-                                id={`edit-description-${injury.id}`}
                                 placeholder="Describe the injury and any relevant details"
-                                value={editData.description}
-                                onChange={(e) => setEditData({...editData, description: e.target.value})}
+                                value={editData.notes}
+                                onChange={(e) => setEditData({...editData, notes: e.target.value})}
                                 className="min-h-[80px] resize-none"
                               />
                             </div>
@@ -310,30 +433,26 @@ const InjuryTracker = () => {
                               <div className="space-y-2 flex-1 min-w-0">
                                 <div className="flex items-center space-x-2">
                                   <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                  <span className="font-medium text-sm sm:text-base truncate">{injury.bodyPart}</span>
-                                  <Badge className={`${getSeverityColor(injury.severity)} text-xs flex-shrink-0`}>
-                                    {injury.severity}
+                                  <span className="font-medium text-sm sm:text-base truncate">{injury.name}</span>
+                                  <Badge 
+                                    variant={injury.status === "active" ? "destructive" : injury.status === "recovering" ? "default" : "secondary"}
+                                    className="text-xs flex-shrink-0"
+                                  >
+                                    {injury.status}
                                   </Badge>
                                 </div>
                                 
                                 <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
                                   <Calendar className="h-3 w-3 flex-shrink-0" />
-                                  <span>{new Date(injury.date).toLocaleDateString()}</span>
+                                  <span>{new Date(injury.start_date).toLocaleDateString()}</span>
                                 </div>
                                 
-                                {injury.description && (
-                                  <p className="text-xs sm:text-sm text-gray-700 break-words">{injury.description}</p>
+                                {injury.notes && (
+                                  <p className="text-xs sm:text-sm text-gray-700 break-words">{injury.notes}</p>
                                 )}
                               </div>
                               
                               <div className="flex flex-col space-y-2 ml-3 flex-shrink-0">
-                                <Badge 
-                                  variant={injury.status === "active" ? "destructive" : "secondary"}
-                                  className="text-xs whitespace-nowrap"
-                                >
-                                  {injury.status}
-                                </Badge>
-                                
                                 <div className="flex flex-col space-y-1">
                                   <Button
                                     size="sm"
@@ -349,12 +468,21 @@ const InjuryTracker = () => {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => handleUpdateStatus(injury.id, "recovered")}
+                                      onClick={() => handleUpdateStatus(injury.id, "resolved")}
                                       className="text-xs px-2 py-1 h-auto whitespace-nowrap"
                                     >
                                       Mark Recovered
                                     </Button>
                                   )}
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDeleteInjury(injury.id)}
+                                    className="text-xs px-2 py-1 h-auto whitespace-nowrap"
+                                  >
+                                    Delete
+                                  </Button>
                                 </div>
                               </div>
                             </div>
@@ -370,7 +498,7 @@ const InjuryTracker = () => {
         </CardContent>
       </Card>
 
-      {/* Workout Adjustments Info - Mobile Optimized */}
+      {/* Workout Adjustments Info */}
       <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="text-yellow-800 text-base sm:text-lg">Workout Adjustments</CardTitle>
@@ -380,13 +508,22 @@ const InjuryTracker = () => {
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           <div className="space-y-3">
-            <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-yellow-200">
-              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-yellow-800 text-sm sm:text-base">Lower Back (Mild)</p>
-                <p className="text-xs sm:text-sm text-yellow-700 break-words">Avoiding: Heavy deadlifts, squats. Modified: Core exercises with reduced intensity.</p>
+            {injuries.filter(injury => injury.status === 'active').map(injury => (
+              <div key={injury.id} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-yellow-200">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-yellow-800 text-sm sm:text-base">{injury.name}</p>
+                  <p className="text-xs sm:text-sm text-yellow-700 break-words">
+                    Consider avoiding exercises that may aggravate this injury. Consult with a healthcare professional for specific recommendations.
+                  </p>
+                </div>
               </div>
-            </div>
+            ))}
+            {injuries.filter(injury => injury.status === 'active').length === 0 && (
+              <div className="text-center py-4 text-yellow-700">
+                <p className="text-sm">No active injuries affecting your workouts!</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

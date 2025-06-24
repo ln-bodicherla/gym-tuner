@@ -213,6 +213,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          workout_images_cache: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          workout_images_cache?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          workout_images_cache?: Json | null
+        }
+        Relationships: []
+      }
       workout_plans: {
         Row: {
           completed_date: string | null
@@ -264,10 +288,12 @@ export type Database = {
           created_at: string | null
           duration_minutes: number | null
           end_time: string | null
+          equipment_image_url: string | null
           id: string
           name: string
           notes: string | null
           plan_id: string | null
+          source_plan_name: string | null
           start_time: string | null
           user_id: string
           workout_date: string | null
@@ -277,10 +303,12 @@ export type Database = {
           created_at?: string | null
           duration_minutes?: number | null
           end_time?: string | null
+          equipment_image_url?: string | null
           id?: string
           name: string
           notes?: string | null
           plan_id?: string | null
+          source_plan_name?: string | null
           start_time?: string | null
           user_id: string
           workout_date?: string | null
@@ -290,10 +318,12 @@ export type Database = {
           created_at?: string | null
           duration_minutes?: number | null
           end_time?: string | null
+          equipment_image_url?: string | null
           id?: string
           name?: string
           notes?: string | null
           plan_id?: string | null
+          source_plan_name?: string | null
           start_time?: string | null
           user_id?: string
           workout_date?: string | null

@@ -36,11 +36,13 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   }, [user]);
 
   const loadProfile = async () => {
+    if (!user) return;
+
     try {
       const { data: profileData } = await supabase
         .from('profiles')
         .select('max_workout_time, min_workout_time, age, weight, height, fitness_level')
-        .eq('id', user?.id)
+        .eq('id', user.id)
         .single();
 
       if (profileData) {
@@ -52,6 +54,8 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   };
 
   const loadStats = async () => {
+    if (!user) return;
+
     try {
       // Get workouts from this week
       const startOfWeek = new Date();
@@ -61,21 +65,21 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       const { data: weeklyWorkouts } = await supabase
         .from('workouts')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .gte('workout_date', startOfWeek.toISOString().split('T')[0]);
 
       // Get active injuries
       const { data: injuries } = await supabase
         .from('injuries')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .in('status', ['active', 'recovering']);
 
       // Get recent workouts for streak calculation
       const { data: recentWorkouts } = await supabase
         .from('workouts')
         .select('workout_date')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('workout_date', { ascending: false })
         .limit(30);
 
