@@ -19,10 +19,12 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
   const { signOut, user } = useAuth();
-  const { subscriptionInfo, checkSubscriptionStatus } = useSubscription();
+  const { subscriptionInfo, checkSubscriptionStatus, loading, initialCheckComplete } = useSubscription();
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
+    if (!initialCheckComplete) return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const subscription = urlParams.get('subscription');
     const sessionId = urlParams.get('session_id');
@@ -51,7 +53,7 @@ const Index = () => {
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [toast, checkSubscriptionStatus]);
+  }, [toast, checkSubscriptionStatus, initialCheckComplete]);
 
   // Listen for upgrade button clicks from child components
   useEffect(() => {
@@ -85,6 +87,18 @@ const Index = () => {
     { value: "workouts", label: "Workouts", icon: Heart },
     { value: "subscription", label: "Pro", icon: Crown },
   ];
+
+  // Show loading state while checking subscription
+  if (loading || !initialCheckComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">

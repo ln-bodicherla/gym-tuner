@@ -13,10 +13,15 @@ export const useSubscription = () => {
   const { user } = useAuth();
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
   useEffect(() => {
     if (user) {
       checkSubscriptionStatus();
+    } else {
+      setLoading(false);
+      setInitialCheckComplete(true);
+      setSubscriptionInfo({ subscribed: false });
     }
   }, [user]);
 
@@ -45,6 +50,7 @@ export const useSubscription = () => {
       setSubscriptionInfo({ subscribed: false });
     } finally {
       setLoading(false);
+      setInitialCheckComplete(true);
     }
   };
 
@@ -55,6 +61,7 @@ export const useSubscription = () => {
   return {
     subscriptionInfo,
     loading,
+    initialCheckComplete,
     checkSubscriptionStatus,
     hasAccess,
   };
