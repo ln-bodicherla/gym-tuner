@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { 
   Users, 
   TrendingUp, 
@@ -43,70 +43,37 @@ interface AdminAnalytics {
 }
 
 const Admin = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading, adminInfo, login, logout, getAnalytics } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [loginLoading, setLoginLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAdminAuth();
-  }, []);
-
-  const checkAdminAuth = async () => {
-    try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('verify_admin_session', { 
-        session_token: token 
-      });
-
-      if (error || !data) {
-        localStorage.removeItem('admin_token');
-        setLoading(false);
-        return;
-      }
-
-      setIsAuthenticated(true);
-      await loadAnalytics();
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('admin_token');
-    } finally {
-      setLoading(false);
+    if (isAuthenticated && !analytics) {
+      loadAnalytics();
     }
-  };
+  }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoginLoading(true);
 
     try {
-      const { data, error } = await supabase.rpc('admin_login', {
-        login_email: email,
-        login_password: password
-      });
-
-      if (error || !data?.success) {
+      const result = await login(email, password);
+      
+      if (!result.success) {
         toast({
           title: "Authentication Failed",
-          description: "Invalid credentials",
+          description: result.error || "Invalid credentials",
           variant: "destructive",
         });
         return;
       }
 
-      localStorage.setItem('admin_token', data.session_token);
-      setIsAuthenticated(true);
-      await loadAnalytics();
-      
       toast({
         title: "Welcome Administrator",
         description: "Successfully logged in to admin dashboard",
@@ -119,13 +86,12 @@ const Admin = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    setIsAuthenticated(false);
+    logout();
     toast({
       title: "Logged Out",
       description: "Admin session ended",
@@ -134,16 +100,15 @@ const Admin = () => {
 
   const loadAnalytics = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_admin_analytics');
-      
-      if (error) {
-        console.error('Failed to load analytics:', error);
-        return;
-      }
-
+      const data = await getAnalytics();
       setAnalytics(data);
     } catch (error) {
-      console.error('Analytics loading error:', error);
+      console.error('Failed to load analytics:', error);
+      toast({
+        title: "Analytics Error",
+        description: "Failed to load analytics data",
+        variant: "destructive",
+      });
     }
   };
 
@@ -194,8 +159,8 @@ const Admin = () => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Authenticating...' : 'Login'}
+              <Button type="submit" className="w-full" disabled={loginLoading}>
+                {loginLoading ? 'Authenticating...' : 'Login'}
               </Button>
             </form>
           </CardContent>
@@ -218,6 +183,11 @@ const Admin = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {adminInfo && (
+                <div className="text-sm text-gray-600">
+                  Welcome, {adminInfo.full_name}
+                </div>
+              )}
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/dashboard')}

@@ -61,21 +61,27 @@ export const useAdminAuth = () => {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'login', email, password }
       });
 
-      if (error || !data?.success) {
-        throw new Error('Invalid credentials');
+      if (error) {
+        console.error('Login error:', error);
+        return { success: false, error: error.message || 'Login failed' };
+      }
+
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Invalid credentials' };
       }
 
       localStorage.setItem('admin_token', data.session_token);
       await checkAuthStatus();
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('Login exception:', error);
+      return { success: false, error: 'Network error occurred' };
     }
   };
 

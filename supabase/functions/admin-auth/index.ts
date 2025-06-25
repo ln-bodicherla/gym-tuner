@@ -21,7 +21,9 @@ serve(async (req) => {
     const { action, email, password, session_token } = await req.json()
 
     if (action === 'login') {
-      // Verify admin credentials
+      console.log('Login attempt for:', email)
+      
+      // Check if admin user exists and is active
       const { data: adminUser, error: adminError } = await supabaseClient
         .from('admin_users')
         .select('*')
@@ -29,25 +31,68 @@ serve(async (req) => {
         .eq('is_active', true)
         .single()
 
-      if (adminError || !adminUser) {
+      if (adminError) {
+        console.error('Admin user lookup error:', adminError)
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
 
-      // Check password using PostgreSQL's crypt function
-      const { data: passwordCheck } = await supabaseClient.rpc('check_admin_password', {
-        input_email: email,
-        input_password: password
-      })
-
-      if (!passwordCheck) {
+      if (!adminUser) {
+        console.log('Admin user not found or inactive')
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
+
+      // Verify password using crypt function
+      const { data: passwordCheck, error: passwordError } = await supabaseClient
+        .rpc('verify_admin_password', {
+          input_email: email,
+          input_password: password
+        })
+
+      if (passwordError) {
+        console.error('Password verification error:', passwordError)
+        // Fallback to direct password comparison using SQL
+        const { data: directCheck, error: directError } = await supabaseClient
+          .from('admin_users')
+          .select('password_hash')
+          .eq('email', email)
+          .single()
+
+        if (directError || !directCheck) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Invalid credentials' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+          )
+        }
+
+        // Use a simple verification as fallback
+        const { data: cryptCheck } = await supabaseClient
+          .rpc('verify_password', {
+            password: password,
+            hash: directCheck.password_hash
+          }).single()
+
+        if (!cryptCheck) {
+          console.log('Password verification failed')
+          return new Response(
+            JSON.stringify({ success: false, error: 'Invalid credentials' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+          )
+        }
+      } else if (!passwordCheck) {
+        console.log('Password check returned false')
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid credentials' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      console.log('Password verified successfully')
 
       // Create admin session
       const sessionToken = crypto.randomUUID()
@@ -78,6 +123,7 @@ serve(async (req) => {
         .update({ last_login: new Date().toISOString() })
         .eq('id', adminUser.id)
 
+      console.log('Login successful for:', email)
       return new Response(
         JSON.stringify({ success: true, session_token: sessionToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
