@@ -254,9 +254,14 @@ const Landing = () => {
                   </Button>
                 </Link>
                 
-                <p className="text-xs text-gray-500 text-center">
-                  Cancel anytime • 7-day free trial
-                </p>
+                <div className="text-center space-y-2">
+                  <p className="text-xs text-gray-500">
+                    Cancel anytime • 7-day free trial
+                  </p>
+                  <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                    💰 Full refund within 7 days after purchase
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -369,8 +374,8 @@ const Landing = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="col-span-1 md:col-span-1">
               <div className="flex items-center space-x-3 mb-4">
                 <img 
                   src="/lovable-uploads/5e825f2e-98c7-4e9c-87a9-1b104539f992.png" 
@@ -388,15 +393,14 @@ const Landing = () => {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">API</a></li>
+                <li><a href="#testimonials" className="hover:text-white transition-colors">Testimonials</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-4">Support</h3>
+              <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><a href="mailto:support@gymtuner.com" className="hover:text-white transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
