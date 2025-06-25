@@ -297,9 +297,9 @@ const WorkoutPlan = () => {
 
     setIsGenerating(true);
     try {
-      console.log('Calling Gemini AI for workout generation...');
+      console.log('Calling AI service for workout generation...');
       
-      // Call the Supabase Edge Function for Gemini AI generation
+      // Call the Supabase Edge Function for AI generation
       const { data, error } = await supabase.functions.invoke('generate-workout', {
         body: { userData }
       });
@@ -324,7 +324,7 @@ const WorkoutPlan = () => {
       
       toast({
         title: "AI Workout Generated!",
-        description: `Created a personalized ${workoutPlan.name} using Gemini Flash 2.0 AI based on your profile and goals.`,
+        description: `Created a personalized ${workoutPlan.name} using advanced AI based on your profile and goals.`,
       });
     } catch (error) {
       console.error('Error generating workout:', error);
@@ -612,7 +612,7 @@ const WorkoutPlan = () => {
           <p className="text-gray-600 mt-1">
             <span className="inline-flex items-center">
               <Sparkles className="h-4 w-4 mr-1 text-purple-500" />
-              Powered by Gemini Flash 2.0 AI
+              Powered by Advanced AI
             </span>
           </p>
         </div>
@@ -678,7 +678,7 @@ const WorkoutPlan = () => {
             {!hasAccess() ? (
               <LockedFeature
                 title="AI Workout Generation"
-                description="Get personalized workout plans powered by Gemini Flash 2.0 AI"
+                description="Get personalized workout plans powered by advanced AI"
                 icon={<Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />}
                 onUpgrade={handleUpgradeClick}
               />
@@ -700,7 +700,7 @@ const WorkoutPlan = () => {
                       <span>Generate AI Workout</span>
                     </CardTitle>
                     <CardDescription>
-                      Get a personalized workout plan powered by Gemini Flash 2.0 AI, based on your profile, goals, injuries, and workout history
+                      Get a personalized workout plan powered by advanced AI, based on your profile, goals, injuries, and workout history
                     </CardDescription>
                     {todayHasPlan && (
                       <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -747,7 +747,7 @@ const WorkoutPlan = () => {
                       {isGenerating ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Gemini AI is analyzing your data...
+                          AI is analyzing your data...
                         </>
                       ) : (
                         <>
