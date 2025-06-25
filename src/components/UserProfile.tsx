@@ -45,15 +45,23 @@ const UserProfile = () => {
 
   const loadProfile = async () => {
     try {
-      const { data: profileData } = await supabase
+      console.log('Loading profile for user:', user?.id);
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .maybeSingle();
 
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
       if (profileData) {
+        console.log('Profile data loaded:', profileData);
         setProfile(prev => ({
           ...prev,
+          name: profileData.full_name || prev.name,
           age: profileData.age?.toString() || "",
           weight: profileData.weight?.toString() || "",
           height: profileData.height || "",
@@ -66,6 +74,8 @@ const UserProfile = () => {
           preferences: profileData.preferences || "",
           limitations: profileData.limitations || ""
         }));
+      } else {
+        console.log('No profile data found, will create new profile on save');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -73,40 +83,67 @@ const UserProfile = () => {
   };
 
   const handleSave = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not found. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      console.log('Saving profile for user:', user.id);
+      console.log('Profile data to save:', profile);
+
+      const profileData = {
+        id: user.id,
+        full_name: profile.name,
+        age: profile.age ? parseInt(profile.age) : null,
+        weight: profile.weight ? parseFloat(profile.weight) : null,
+        height: profile.height || null,
+        fitness_level: profile.fitness_level || null,
+        max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
+        min_workout_time: profile.min_workout_time ? parseInt(profile.min_workout_time) : null,
+        weekly_goal: profile.weekly_goal ? parseInt(profile.weekly_goal) : null,
+        preferred_workout_types: profile.preferred_workout_types || null,
+        availability: profile.availability || null,
+        preferences: profile.preferences || null,
+        limitations: profile.limitations || null,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Formatted profile data:', profileData);
+
+      const { data, error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user?.id,
-          full_name: profile.name,
-          age: profile.age ? parseInt(profile.age) : null,
-          weight: profile.weight ? parseFloat(profile.weight) : null,
-          height: profile.height,
-          fitness_level: profile.fitness_level,
-          max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
-          min_workout_time: profile.min_workout_time ? parseInt(profile.min_workout_time) : null,
-          weekly_goal: profile.weekly_goal ? parseInt(profile.weekly_goal) : null,
-          preferred_workout_types: profile.preferred_workout_types,
-          availability: profile.availability,
-          preferences: profile.preferences,
-          limitations: profile.limitations,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(profileData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
 
       if (error) {
+        console.error('Supabase upsert error:', error);
         throw error;
       }
+
+      console.log('Profile saved successfully:', data);
 
       setIsEditing(false);
       toast({
         title: "Profile updated",
         description: "Your profile has been saved successfully.",
       });
+
+      // Reload the profile to confirm the save
+      await loadProfile();
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({
         title: "Error saving profile",
-        description: "Please try again.",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     }
