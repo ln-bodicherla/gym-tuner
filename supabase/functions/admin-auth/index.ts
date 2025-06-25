@@ -1,72 +1,45 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    
     const { action, email, password, session_token } = await req.json()
 
     if (action === 'login') {
-      console.log('Login attempt for:', email)
+      console.log(`Login attempt for: ${email}`)
       
-      // First, ensure admin_users table exists and has default admin
-      await ensureAdminSetup(supabaseClient)
-      
-      // Check if admin user exists and is active
-      const { data: adminUser, error: adminError } = await supabaseClient
-        .from('admin_users')
-        .select('*')
-        .eq('email', email)
-        .eq('is_active', true)
-        .single()
+      // Verify admin credentials using the database function
+      const { data: isValid, error: verifyError } = await supabase.rpc('verify_admin_password', {
+        input_email: email,
+        input_password: password
+      })
 
-      if (adminError) {
-        console.error('Admin user lookup error:', adminError)
-        return new Response(
-          JSON.stringify({ success: false, error: 'Invalid credentials' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-        )
-      }
-
-      if (!adminUser) {
-        console.log('Admin user not found or inactive')
-        return new Response(
-          JSON.stringify({ success: false, error: 'Invalid credentials' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-        )
-      }
-
-      // Verify password using our custom function
-      const { data: passwordValid, error: passwordError } = await supabaseClient
-        .rpc('verify_admin_password', {
-          input_email: email,
-          input_password: password
-        })
-
-      if (passwordError) {
-        console.error('Password verification error:', passwordError)
+      if (verifyError) {
+        console.error('Password verification error:', verifyError)
         return new Response(
           JSON.stringify({ success: false, error: 'Authentication failed' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
 
-      if (!passwordValid) {
-        console.log('Password verification failed')
+      if (!isValid) {
+        console.log('Invalid credentials for:', email)
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -75,12 +48,28 @@ serve(async (req) => {
 
       console.log('Password verified successfully')
 
-      // Create admin session
+      // Get admin user details
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('id, email, full_name, is_active')
+        .eq('email', email)
+        .eq('is_active', true)
+        .single()
+
+      if (adminError || !adminUser) {
+        console.error('Admin user lookup error:', adminError)
+        return new Response(
+          JSON.stringify({ success: false, error: 'User not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Create session
       const sessionToken = crypto.randomUUID()
       const expiresAt = new Date()
-      expiresAt.setHours(expiresAt.getHours() + 24)
+      expiresAt.setHours(expiresAt.getHours() + 24) // 24 hour session
 
-      const { error: sessionError } = await supabaseClient
+      const { error: sessionError } = await supabase
         .from('admin_sessions')
         .insert({
           admin_id: adminUser.id,
@@ -99,24 +88,41 @@ serve(async (req) => {
       }
 
       // Update last login
-      await supabaseClient
+      await supabase
         .from('admin_users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', adminUser.id)
 
-      console.log('Login successful for:', email)
+      console.log(`Login successful for: ${email}`)
+
       return new Response(
-        JSON.stringify({ success: true, session_token: sessionToken }),
+        JSON.stringify({
+          success: true,
+          session_token: sessionToken,
+          admin: {
+            id: adminUser.id,
+            email: adminUser.email,
+            full_name: adminUser.full_name
+          }
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (action === 'verify') {
-      // Verify admin session
-      const { data: session, error: sessionError } = await supabaseClient
+      if (!session_token) {
+        return new Response(
+          JSON.stringify({ valid: false, error: 'No session token provided' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Verify session
+      const { data: session, error: sessionError } = await supabase
         .from('admin_sessions')
         .select(`
-          *,
+          id,
+          expires_at,
           admin_users (
             id,
             email,
@@ -125,40 +131,261 @@ serve(async (req) => {
           )
         `)
         .eq('session_token', session_token)
-        .gt('expires_at', new Date().toISOString())
         .single()
 
-      if (sessionError || !session || !session.admin_users.is_active) {
+      if (sessionError || !session) {
         return new Response(
-          JSON.stringify({ valid: false }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ valid: false, error: 'Invalid session' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Check if session is expired
+      if (new Date(session.expires_at) < new Date()) {
+        // Clean up expired session
+        await supabase
+          .from('admin_sessions')
+          .delete()
+          .eq('session_token', session_token)
+
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Session expired' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Check if admin is still active
+      if (!session.admin_users.is_active) {
+        return new Response(
+          JSON.stringify({ valid: false, error: 'Admin account disabled' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
 
       return new Response(
-        JSON.stringify({ valid: true, admin: session.admin_users }),
+        JSON.stringify({
+          valid: true,
+          admin: {
+            id: session.admin_users.id,
+            email: session.admin_users.email,
+            full_name: session.admin_users.full_name
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (action === 'get_users') {
+      if (!session_token) {
+        return new Response(
+          JSON.stringify({ error: 'No session token provided' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Verify admin session first
+      const { data: session, error: sessionError } = await supabase
+        .from('admin_sessions')
+        .select('expires_at, admin_users!inner(is_active)')
+        .eq('session_token', session_token)
+        .single()
+
+      if (sessionError || !session || new Date(session.expires_at) < new Date() || !session.admin_users.is_active) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired session' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      // Get all users with their subscription and activity data
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch users' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
+
+      // Get subscription data
+      const { data: subscribers, error: subError } = await supabase
+        .from('subscribers')
+        .select('user_id, subscribed, subscription_tier, subscription_end, trial_end')
+
+      if (subError) {
+        console.error('Error fetching subscribers:', subError)
+      }
+
+      // Get profile data
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError)
+      }
+
+      // Get activity counts
+      const { data: workoutCounts, error: workoutError } = await supabase
+        .from('workouts')
+        .select('user_id')
+
+      const { data: goalCounts, error: goalError } = await supabase
+        .from('goals')
+        .select('user_id')
+
+      const { data: injuryCounts, error: injuryError } = await supabase
+        .from('injuries')
+        .select('user_id')
+
+      // Create lookup maps for efficiency
+      const subscriberMap = new Map()
+      subscribers?.forEach(sub => subscriberMap.set(sub.user_id, sub))
+
+      const profileMap = new Map()
+      profiles?.forEach(profile => profileMap.set(profile.id, profile))
+
+      const workoutCountMap = new Map()
+      workoutCounts?.forEach(workout => {
+        const count = workoutCountMap.get(workout.user_id) || 0
+        workoutCountMap.set(workout.user_id, count + 1)
+      })
+
+      const goalCountMap = new Map()
+      goalCounts?.forEach(goal => {
+        const count = goalCountMap.get(goal.user_id) || 0
+        goalCountMap.set(goal.user_id, count + 1)
+      })
+
+      const injuryCountMap = new Map()
+      injuryCounts?.forEach(injury => {
+        const count = injuryCountMap.get(injury.user_id) || 0
+        injuryCountMap.set(injury.user_id, count + 1)
+      })
+
+      // Combine all user data
+      const users = authUsers.users.map(user => {
+        const subscription = subscriberMap.get(user.id) || {}
+        const profile = profileMap.get(user.id) || {}
+        
+        return {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          email_confirmed_at: user.email_confirmed_at,
+          full_name: profile.full_name || user.user_metadata?.full_name,
+          subscribed: subscription.subscribed || false,
+          subscription_tier: subscription.subscription_tier,
+          subscription_end: subscription.subscription_end,
+          trial_end: subscription.trial_end,
+          total_workouts: workoutCountMap.get(user.id) || 0,
+          total_goals: goalCountMap.get(user.id) || 0,
+          total_injuries: injuryCountMap.get(user.id) || 0,
+        }
+      })
+
+      return new Response(
+        JSON.stringify({ users }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (action === 'analytics') {
+      if (!session_token) {
+        return new Response(
+          JSON.stringify({ error: 'No session token provided' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
       // Verify admin session first
-      const { data: session } = await supabaseClient
+      const { data: session, error: sessionError } = await supabase
         .from('admin_sessions')
-        .select('admin_users!inner(*)')
+        .select('expires_at, admin_users!inner(is_active)')
         .eq('session_token', session_token)
-        .gt('expires_at', new Date().toISOString())
         .single()
 
-      if (!session) {
+      if (sessionError || !session || new Date(session.expires_at) < new Date() || !session.admin_users.is_active) {
         return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
+          JSON.stringify({ error: 'Invalid or expired session' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
 
       // Get analytics data
-      const analytics = await getAnalyticsData(supabaseClient)
+      const { data: authUsers } = await supabase.auth.admin.listUsers()
+      const totalUsers = authUsers?.users?.length || 0
+
+      // Get users from different time periods
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const sevenDaysAgo = new Date(today)
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const thirtyDaysAgo = new Date(today)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+      const usersToday = authUsers?.users?.filter(user => 
+        new Date(user.created_at) >= today
+      ).length || 0
+
+      const usersLast7Days = authUsers?.users?.filter(user => 
+        new Date(user.created_at) >= sevenDaysAgo
+      ).length || 0
+
+      const usersLast30Days = authUsers?.users?.filter(user => 
+        new Date(user.created_at) >= thirtyDaysAgo
+      ).length || 0
+
+      // Get subscription data
+      const { data: subscribers } = await supabase
+        .from('subscribers')
+        .select('subscribed, subscription_tier')
+
+      const activeSubscribers = subscribers?.filter(s => s.subscribed).length || 0
+      const inactiveSubscribers = subscribers?.filter(s => !s.subscribed).length || 0
+
+      // Get activity data
+      const { data: workouts } = await supabase.from('workouts').select('id, created_at')
+      const { data: workoutPlans } = await supabase.from('workout_plans').select('id')
+      const { data: goals } = await supabase.from('goals').select('id')
+      const { data: injuries } = await supabase.from('injuries').select('id')
+      const { data: sessions } = await supabase.from('analytics_sessions').select('id, created_at')
+      const { data: pageViews } = await supabase.from('analytics_events').select('id, created_at')
+
+      const workoutsLast30Days = workouts?.filter(w => 
+        new Date(w.created_at) >= thirtyDaysAgo
+      ).length || 0
+
+      const sessionsLast30Days = sessions?.filter(s => 
+        new Date(s.created_at) >= thirtyDaysAgo
+      ).length || 0
+
+      const pageViewsLast30Days = pageViews?.filter(pv => 
+        new Date(pv.created_at) >= thirtyDaysAgo
+      ).length || 0
+
+      const analytics = {
+        total_users: totalUsers,
+        users_today: usersToday,
+        users_last_7_days: usersLast7Days,
+        users_last_30_days: usersLast30Days,
+        active_subscribers: activeSubscribers,
+        inactive_subscribers: inactiveSubscribers,
+        basic_subscribers: 0,
+        premium_subscribers: 0,
+        enterprise_subscribers: 0,
+        total_sessions: sessions?.length || 0,
+        sessions_last_30_days: sessionsLast30Days,
+        total_page_views: pageViews?.length || 0,
+        page_views_last_30_days: pageViewsLast30Days,
+        total_workouts: workouts?.length || 0,
+        workouts_last_30_days: workoutsLast30Days,
+        total_workout_plans: workoutPlans?.length || 0,
+        total_goals: goals?.length || 0,
+        total_injuries: injuries?.length || 0,
+      }
 
       return new Response(
         JSON.stringify(analytics),
@@ -179,134 +406,3 @@ serve(async (req) => {
     )
   }
 })
-
-async function ensureAdminSetup(supabaseClient: any) {
-  try {
-    // Check if admin_users table exists and has any records
-    const { count } = await supabaseClient
-      .from('admin_users')
-      .select('*', { count: 'exact', head: true })
-
-    // If no admin users exist, create the default one
-    if (count === 0) {
-      console.log('No admin users found, creating default admin')
-      
-      // Create default admin with hashed password
-      const { error: insertError } = await supabaseClient
-        .from('admin_users')
-        .insert({
-          email: 'admin@gymtuner.com',
-          password_hash: crypt('GymTuner2025!Admin', gen_salt('bf')),
-          full_name: 'System Administrator',
-          is_active: true
-        })
-
-      if (insertError) {
-        console.error('Error creating default admin:', insertError)
-      } else {
-        console.log('Default admin created successfully')
-      }
-    }
-  } catch (error) {
-    console.error('Error in ensureAdminSetup:', error)
-  }
-}
-
-async function getAnalyticsData(supabaseClient: any) {
-  try {
-    // Get user statistics
-    const { count: totalUsers } = await supabaseClient
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-
-    const { count: usersLast30Days } = await supabaseClient
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-
-    const { count: usersLast7Days } = await supabaseClient
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-
-    const { count: usersToday } = await supabaseClient
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date().toISOString().split('T')[0])
-
-    // Get subscription statistics
-    const { count: activeSubscribers } = await supabaseClient
-      .from('subscribers')
-      .select('*', { count: 'exact', head: true })
-      .eq('subscribed', true)
-
-    const { count: inactiveSubscribers } = await supabaseClient
-      .from('subscribers')
-      .select('*', { count: 'exact', head: true })
-      .eq('subscribed', false)
-
-    // Get analytics statistics
-    const { data: sessions } = await supabaseClient
-      .from('analytics_sessions')
-      .select('session_id')
-
-    const uniqueSessions = new Set(sessions?.map(s => s.session_id) || []).size
-
-    const { count: totalPageViews } = await supabaseClient
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('event_type', 'page_view')
-
-    const { count: pageViewsLast30Days } = await supabaseClient
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('event_type', 'page_view')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-
-    // Get activity statistics
-    const { count: totalWorkouts } = await supabaseClient
-      .from('workouts')
-      .select('*', { count: 'exact', head: true })
-
-    const { count: workoutsLast30Days } = await supabaseClient
-      .from('workouts')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-
-    const { count: totalWorkoutPlans } = await supabaseClient
-      .from('workout_plans')
-      .select('*', { count: 'exact', head: true })
-
-    const { count: totalGoals } = await supabaseClient
-      .from('goals')
-      .select('*', { count: 'exact', head: true })
-
-    const { count: totalInjuries } = await supabaseClient
-      .from('injuries')
-      .select('*', { count: 'exact', head: true })
-
-    return {
-      total_users: totalUsers || 0,
-      users_last_30_days: usersLast30Days || 0,
-      users_last_7_days: usersLast7Days || 0,
-      users_today: usersToday || 0,
-      active_subscribers: activeSubscribers || 0,
-      inactive_subscribers: inactiveSubscribers || 0,
-      basic_subscribers: 0,
-      premium_subscribers: 0,
-      enterprise_subscribers: 0,
-      total_sessions: uniqueSessions,
-      sessions_last_30_days: uniqueSessions, // Simplified for now
-      total_page_views: totalPageViews || 0,
-      page_views_last_30_days: pageViewsLast30Days || 0,
-      total_workouts: totalWorkouts || 0,
-      workouts_last_30_days: workoutsLast30Days || 0,
-      total_workout_plans: totalWorkoutPlans || 0,
-      total_goals: totalGoals || 0,
-      total_injuries: totalInjuries || 0
-    }
-  } catch (error) {
-    console.error('Analytics data error:', error)
-    return {}
-  }
-}

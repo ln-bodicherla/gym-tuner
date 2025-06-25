@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   TrendingUp, 
@@ -18,7 +19,9 @@ import {
   BarChart3,
   Calendar,
   DollarSign,
-  LogOut
+  LogOut,
+  Mail,
+  User
 } from 'lucide-react';
 
 interface AdminAnalytics {
@@ -42,13 +45,31 @@ interface AdminAnalytics {
   total_injuries: number;
 }
 
+interface UserDetails {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+  full_name: string | null;
+  subscribed: boolean;
+  subscription_tier: string | null;
+  subscription_end: string | null;
+  trial_end: string | null;
+  total_workouts: number;
+  total_goals: number;
+  total_injuries: number;
+}
+
 const Admin = () => {
   const { isAuthenticated, loading, adminInfo, login, logout, getAnalytics } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [users, setUsers] = useState<UserDetails[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -57,6 +78,12 @@ const Admin = () => {
       loadAnalytics();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'users' && users.length === 0) {
+      loadUsers();
+    }
+  }, [isAuthenticated, activeTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +137,49 @@ const Admin = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (!token) throw new Error('No admin session');
+
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'get_users', session_token: token }
+      });
+
+      if (error) throw error;
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      toast({
+        title: "Users Error",
+        description: "Failed to load users data",
+        variant: "destructive",
+      });
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getSubscriptionStatus = (user: UserDetails) => {
+    if (user.subscribed) {
+      return (
+        <Badge variant="default" className="bg-green-500">
+          {user.subscription_tier || 'Active'}
+        </Badge>
+      );
+    }
+    if (user.trial_end && new Date(user.trial_end) > new Date()) {
+      return <Badge variant="secondary">Trial</Badge>;
+    }
+    return <Badge variant="outline">Free</Badge>;
   };
 
   if (loading) {
@@ -318,26 +388,87 @@ const Admin = () => {
           <TabsContent value="users" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>User Statistics</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  All Users
+                </CardTitle>
                 <CardDescription>
-                  Overview of user registration and activity
+                  Complete list of registered users with subscription and activity details
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{analytics?.total_users || 0}</div>
-                    <div className="text-sm text-gray-600">Total Users</div>
+              <CardContent>
+                {usersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2">Loading users...</span>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{analytics?.users_last_30_days || 0}</div>
-                    <div className="text-sm text-gray-600">New This Month</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Subscription</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead>Last Login</TableHead>
+                          <TableHead>Activity</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <User className="h-4 w-4 text-gray-400" />
+                                <span className="font-medium">
+                                  {user.full_name || 'Unknown'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Mail className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{user.email}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {user.email_confirmed_at ? (
+                                <Badge variant="default" className="bg-green-500">
+                                  Verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">Unverified</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {getSubscriptionStatus(user)}
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600">
+                              {formatDate(user.created_at)}
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600">
+                              {formatDate(user.last_sign_in_at)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm space-y-1">
+                                <div>Workouts: {user.total_workouts}</div>
+                                <div>Goals: {user.total_goals}</div>
+                                <div>Injuries: {user.total_injuries}</div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {users.length === 0 && !usersLoading && (
+                      <div className="text-center py-8 text-gray-500">
+                        No users found
+                      </div>
+                    )}
                   </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">{analytics?.users_today || 0}</div>
-                    <div className="text-sm text-gray-600">Joined Today</div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
