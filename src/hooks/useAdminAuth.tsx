@@ -6,7 +6,6 @@ interface AdminAuthState {
   isAuthenticated: boolean;
   loading: boolean;
   adminInfo: {
-    id: string;
     email: string;
     full_name: string;
   } | null;
@@ -27,35 +26,22 @@ export const useAdminAuth = () => {
     try {
       const token = localStorage.getItem('admin_token');
       if (!token) {
-        setAuthState(prev => ({ ...prev, loading: false }));
+        setAuthState({ isAuthenticated: false, loading: false, adminInfo: null });
         return;
       }
 
-      console.log('[ADMIN-AUTH] Checking auth status with token');
+      console.log('[ADMIN-AUTH] Verifying token...');
 
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'verify', session_token: token }
       });
 
-      if (error) {
-        console.error('Token verification failed:', error);
-        localStorage.removeItem('admin_token');
-        setAuthState({
-          isAuthenticated: false,
-          loading: false,
-          adminInfo: null
-        });
-        return;
-      }
+      console.log('[ADMIN-AUTH] Verification result:', { data, error });
 
-      if (!data?.valid) {
-        console.log('Token verification failed:', data?.error || 'Invalid token');
+      if (error || !data?.valid) {
+        console.log('[ADMIN-AUTH] Token invalid, removing...');
         localStorage.removeItem('admin_token');
-        setAuthState({
-          isAuthenticated: false,
-          loading: false,
-          adminInfo: null
-        });
+        setAuthState({ isAuthenticated: false, loading: false, adminInfo: null });
         return;
       }
 
@@ -65,19 +51,15 @@ export const useAdminAuth = () => {
         adminInfo: data.admin
       });
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('[ADMIN-AUTH] Check failed:', error);
       localStorage.removeItem('admin_token');
-      setAuthState({
-        isAuthenticated: false,
-        loading: false,
-        adminInfo: null
-      });
+      setAuthState({ isAuthenticated: false, loading: false, adminInfo: null });
     }
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('[ADMIN-AUTH] Attempting login for:', email);
+      console.log('[ADMIN-AUTH] Attempting login...');
       
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'login', email, password }
@@ -86,20 +68,23 @@ export const useAdminAuth = () => {
       console.log('[ADMIN-AUTH] Login response:', { data, error });
 
       if (error) {
-        console.error('Login error:', error);
         return { success: false, error: error.message || 'Login failed' };
       }
 
       if (!data?.success) {
-        console.log('Login failed with data:', data);
         return { success: false, error: data?.error || 'Invalid credentials' };
       }
 
       localStorage.setItem('admin_token', data.session_token);
-      await checkAuthStatus();
+      setAuthState({
+        isAuthenticated: true,
+        loading: false,
+        adminInfo: data.admin
+      });
+      
       return { success: true };
     } catch (error) {
-      console.error('Login exception:', error);
+      console.error('[ADMIN-AUTH] Login error:', error);
       return { success: false, error: 'Network error occurred' };
     }
   };
@@ -125,7 +110,7 @@ export const useAdminAuth = () => {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Analytics fetch failed:', error);
+      console.error('[ADMIN-AUTH] Analytics fetch failed:', error);
       throw error;
     }
   };
