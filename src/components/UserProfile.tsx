@@ -18,11 +18,11 @@ const UserProfile = () => {
   const { user } = useAuth();
   
   const [profile, setProfile] = useState({
-    name: user?.user_metadata?.full_name || "John Doe",
-    email: user?.email || "john@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "New York, NY",
-    bio: "Fitness enthusiast passionate about strength training and healthy living.",
+    name: user?.user_metadata?.full_name || "",
+    email: user?.email || "",
+    phone: "",
+    location: "",
+    bio: "",
     joinDate: "January 2024",
     age: "",
     weight: "",
@@ -31,10 +31,12 @@ const UserProfile = () => {
     max_workout_time: "",
     min_workout_time: "",
     weekly_goal: "",
+    experience_years: "",
     preferred_workout_types: "",
     availability: "",
     preferences: "",
-    limitations: ""
+    limitations: "",
+    preferred_time: ""
   });
 
   useEffect(() => {
@@ -76,8 +78,8 @@ const UserProfile = () => {
         setProfile(prev => ({
           ...prev,
           name: profileData.full_name || prev.name,
-          phone: profileData.phone || prev.phone,
-          location: profileData.location || prev.location,
+          phone: profileData.phone || "",
+          location: profileData.location || "",
           age: profileData.age?.toString() || "",
           weight: profileData.weight?.toString() || "",
           height: profileData.height || "",
@@ -85,10 +87,12 @@ const UserProfile = () => {
           max_workout_time: profileData.max_workout_time?.toString() || "",
           min_workout_time: profileData.min_workout_time?.toString() || "",
           weekly_goal: profileData.weekly_goal?.toString() || "",
+          experience_years: profileData.experience_years?.toString() || "",
           preferred_workout_types: profileData.preferred_workout_types || "",
           availability: profileData.availability || "",
           preferences: profileData.preferences || "",
-          limitations: profileData.limitations || ""
+          limitations: profileData.limitations || "",
+          preferred_time: profileData.preferred_time?.toString() || ""
         }));
       } else {
         console.log('No profile data found, will create new profile on save');
@@ -133,20 +137,22 @@ const UserProfile = () => {
 
       const profileData = {
         id: user.id,
-        full_name: profile.name,
+        full_name: profile.name.trim() || null,
         phone: profile.phone.trim() || null,
         location: profile.location.trim() || null,
         age: profile.age ? parseInt(profile.age) : null,
         weight: profile.weight ? parseFloat(profile.weight) : null,
-        height: profile.height || null,
+        height: profile.height.trim() || null,
         fitness_level: profile.fitness_level || null,
         max_workout_time: profile.max_workout_time ? parseInt(profile.max_workout_time) : null,
         min_workout_time: profile.min_workout_time ? parseInt(profile.min_workout_time) : null,
         weekly_goal: profile.weekly_goal ? parseInt(profile.weekly_goal) : null,
-        preferred_workout_types: profile.preferred_workout_types || null,
-        availability: profile.availability || null,
-        preferences: profile.preferences || null,
-        limitations: profile.limitations || null,
+        experience_years: profile.experience_years ? parseInt(profile.experience_years) : null,
+        preferred_workout_types: profile.preferred_workout_types.trim() || null,
+        availability: profile.availability.trim() || null,
+        preferences: profile.preferences.trim() || null,
+        limitations: profile.limitations.trim() || null,
+        preferred_time: profile.preferred_time ? parseInt(profile.preferred_time) : null,
         updated_at: new Date().toISOString()
       };
 
@@ -250,7 +256,7 @@ const UserProfile = () => {
                       onChange={(e) => setProfile({...profile, name: e.target.value})}
                     />
                   ) : (
-                    <p className="text-sm text-gray-600">{profile.name}</p>
+                    <p className="text-sm text-gray-600">{profile.name || 'Not set'}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -271,8 +277,44 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Fitness Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Contact Information */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              {isEditing ? (
+                <Input
+                  id="phone"
+                  placeholder="+1 (555) 123-4567"
+                  value={profile.phone}
+                  onChange={(e) => setProfile({...profile, phone: e.target.value})}
+                />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  <p className="text-sm text-gray-600">{profile.phone || 'Not set'}</p>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              {isEditing ? (
+                <Input
+                  id="location"
+                  placeholder="New York, NY"
+                  value={profile.location}
+                  onChange={(e) => setProfile({...profile, location: e.target.value})}
+                />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <p className="text-sm text-gray-600">{profile.location || 'Not set'}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Physical Information */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="age">Age</Label>
               {isEditing ? (
@@ -316,7 +358,7 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Fitness Level and Time Preferences */}
+          {/* Fitness Information */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fitness_level">Fitness Level</Label>
@@ -337,7 +379,41 @@ const UserProfile = () => {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="max_workout_time">Maximum Workout Time (min)</Label>
+              <Label htmlFor="experience_years">Experience (Years)</Label>
+              {isEditing ? (
+                <Input
+                  id="experience_years"
+                  type="number"
+                  placeholder="2"
+                  value={profile.experience_years}
+                  onChange={(e) => setProfile({...profile, experience_years: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.experience_years ? `${profile.experience_years} years` : 'Not set'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferred_time">Preferred Time (Hour)</Label>
+              {isEditing ? (
+                <Input
+                  id="preferred_time"
+                  type="number"
+                  placeholder="18"
+                  min="0"
+                  max="23"
+                  value={profile.preferred_time}
+                  onChange={(e) => setProfile({...profile, preferred_time: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">{profile.preferred_time ? `${profile.preferred_time}:00` : 'Not set'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Workout Preferences */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="max_workout_time">Max Workout Time (min)</Label>
               {isEditing ? (
                 <Input
                   id="max_workout_time"
@@ -351,7 +427,7 @@ const UserProfile = () => {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="min_workout_time">Minimum Workout Time (min)</Label>
+              <Label htmlFor="min_workout_time">Min Workout Time (min)</Label>
               {isEditing ? (
                 <Input
                   id="min_workout_time"
@@ -364,12 +440,8 @@ const UserProfile = () => {
                 <p className="text-sm text-gray-600">{profile.min_workout_time ? `${profile.min_workout_time} minutes` : 'Not set'}</p>
               )}
             </div>
-          </div>
-
-          {/* Weekly Goal */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="weekly_goal">Weekly Workout Goal</Label>
+              <Label htmlFor="weekly_goal">Weekly Goal</Label>
               {isEditing ? (
                 <Input
                   id="weekly_goal"
@@ -384,43 +456,7 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Additional Info - Phone and Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              {isEditing ? (
-                <Input
-                  id="phone"
-                  placeholder="+1 (555) 123-4567"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                />
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <p className="text-sm text-gray-600">{profile.phone}</p>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              {isEditing ? (
-                <Input
-                  id="location"
-                  placeholder="New York, NY"
-                  value={profile.location}
-                  onChange={(e) => setProfile({...profile, location: e.target.value})}
-                />
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <p className="text-sm text-gray-600">{profile.location}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Workout Preferences */}
+          {/* Text Areas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="preferred_workout_types">Preferred Workout Types</Label>
@@ -452,7 +488,6 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Preferences and Limitations */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="preferences">Additional Preferences</Label>
@@ -482,22 +517,6 @@ const UserProfile = () => {
                 <p className="text-sm text-gray-600">{profile.limitations || 'None specified'}</p>
               )}
             </div>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            {isEditing ? (
-              <Textarea
-                id="bio"
-                rows={3}
-                value={profile.bio}
-                onChange={(e) => setProfile({...profile, bio: e.target.value})}
-                placeholder="Tell us about yourself..."
-              />
-            ) : (
-              <p className="text-sm text-gray-600">{profile.bio}</p>
-            )}
           </div>
 
           {/* Save Button */}

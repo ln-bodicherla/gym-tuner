@@ -24,7 +24,8 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     age: null,
     weight: null,
     height: null,
-    fitness_level: null
+    fitness_level: null,
+    weekly_goal: null
   });
   const [loading, setLoading] = useState(true);
 
@@ -41,12 +42,17 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     try {
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('max_workout_time, min_workout_time, age, weight, height, fitness_level')
+        .select('max_workout_time, min_workout_time, age, weight, height, fitness_level, weekly_goal')
         .eq('id', user.id)
         .single();
 
       if (profileData) {
         setProfile(profileData);
+        // Update stats with the actual weekly goal from profile
+        setStats(prevStats => ({
+          ...prevStats,
+          weeklyGoal: profileData.weekly_goal || 4
+        }));
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -103,12 +109,12 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         }
       }
 
-      setStats({
-        weeklyGoal: 4, // This could be fetched from user profile
+      setStats(prevStats => ({
+        ...prevStats,
         completedWorkouts: weeklyWorkouts?.length || 0,
         activeInjuries: injuries?.length || 0,
         currentStreak: streak
-      });
+      }));
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
