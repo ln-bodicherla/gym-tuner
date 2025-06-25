@@ -7,6 +7,7 @@ import UserProfile from "@/components/UserProfile";
 import InjuryTracker from "@/components/InjuryTracker";
 import GoalManager from "@/components/GoalManager";
 import WorkoutPlan from "@/components/WorkoutPlan";
+import WorkoutTracker from "@/components/WorkoutTracker";
 import RecentActivity from "@/components/RecentActivity";
 import Insights from "@/components/Insights";
 import QuickStats from "@/components/QuickStats";
@@ -253,7 +254,10 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="workouts">
-            <WorkoutPlan />
+            <div className="space-y-6">
+              <WorkoutPlan />
+              <WorkoutTracker />
+            </div>
           </TabsContent>
 
           <TabsContent value="subscription">
