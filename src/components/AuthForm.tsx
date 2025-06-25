@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Activity, ArrowLeft } from 'lucide-react';
+import { Activity, ArrowLeft, Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const AuthForm = () => {
@@ -17,13 +17,13 @@ const AuthForm = () => {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signIn, user, session } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { signUp, signIn, signInWithGoogle, user, session } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
-    // Check both user and session to ensure complete authentication
     if (user && session) {
       console.log('User already authenticated, redirecting to dashboard');
       navigate('/dashboard', { replace: true });
@@ -66,6 +66,23 @@ const AuthForm = () => {
     setLoading(false);
   };
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+
+    const { error } = await signInWithGoogle();
+    
+    if (error) {
+      setError(error.message);
+      toast({
+        title: "Google Sign In Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setGoogleLoading(false);
+  };
+
   // Don't render if user is already authenticated
   if (user && session) {
     return null;
@@ -92,6 +109,30 @@ const AuthForm = () => {
             <CardDescription>Smart Workout Planning</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Google Sign In Button */}
+            <Button
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              variant="outline"
+              className="w-full mb-4 h-11 bg-white hover:bg-gray-50 border-gray-300"
+            >
+              {googleLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              ) : (
+                <Mail className="h-4 w-4 mr-2" />
+              )}
+              {googleLoading ? 'Signing in...' : 'Continue with Google'}
+            </Button>
+
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-muted-foreground">Or continue with email</span>
+              </div>
+            </div>
+
             <Tabs defaultValue="signin" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
