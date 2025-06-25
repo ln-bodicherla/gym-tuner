@@ -140,15 +140,12 @@ const Landing = () => {
               Transform your fitness journey with personalized AI workout suggestions, intelligent goal tracking, 
               and comprehensive progress analytics. Start your transformation today.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex justify-center">
               <Link to="/auth">
-                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-8 py-3 text-lg">
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-8 py-3 text-lg">
                   Start Your Journey
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto px-8 py-3 text-lg">
-                Watch Demo
-              </Button>
             </div>
           </div>
         </div>
