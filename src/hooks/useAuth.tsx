@@ -22,14 +22,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
         if (event === 'SIGNED_OUT') {
-          console.log('User signed out, redirecting to landing page');
+          console.log('User signed out, clearing state and redirecting');
+          // Clear all state immediately
+          setSession(null);
+          setUser(null);
           // Force redirect to landing page after sign out
           window.location.href = '/';
         } else if (event === 'SIGNED_IN' && session?.user) {
@@ -43,6 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email || 'No session');
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -76,16 +80,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    console.log('Signing out user...');
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    } else {
-      console.log('Successfully signed out');
-      // Clear local state immediately
+    try {
+      console.log('Initiating sign out...');
+      
+      // Clear local state first
       setSession(null);
       setUser(null);
+      
+      // Sign out from Supabase (this clears the session from database)
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+      
+      console.log('Successfully signed out from Supabase');
+      
       // Force redirect to landing page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Even if there's an error, clear local state and redirect
+      setSession(null);
+      setUser(null);
       window.location.href = '/';
     }
   };

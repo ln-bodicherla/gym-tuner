@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,12 +15,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
+import { Navigate } from "react-router-dom";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
-  const { signOut, user, loading: authLoading } = useAuth();
+  const { signOut, user, loading: authLoading, session } = useAuth();
   const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete, hasAccess } = useSubscription();
+
+  // Redirect if not authenticated - double protection
+  if (!authLoading && (!user || !session)) {
+    console.log('Dashboard access denied - redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
 
   // Check for subscription success/cancellation in URL params
   useEffect(() => {
@@ -101,6 +109,7 @@ const Index = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('User clicked sign out');
       toast({
         title: "Signing out...",
         description: "Redirecting you to the landing page.",
@@ -130,7 +139,7 @@ const Index = () => {
   ];
 
   // Show loading state while checking authentication
-  if (authLoading || !user) {
+  if (authLoading || !user || !session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
