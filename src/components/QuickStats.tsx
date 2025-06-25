@@ -5,8 +5,7 @@ import { AlertTriangle, Trophy, User, Weight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
-import { toZonedTime } from 'date-fns-tz';
-import { format } from 'date-fns';
+import { toZonedTime, format } from 'date-fns-tz';
 
 interface QuickStatsProps {
   className?: string;
@@ -29,6 +28,13 @@ const QuickStats = ({ className }: QuickStatsProps) => {
 
   // PST timezone constant
   const PST_TIMEZONE = 'America/Los_Angeles';
+
+  // Helper function to get current date in PST
+  const getCurrentDatePST = () => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    return format(pstDate, 'yyyy-MM-dd');
+  };
 
   // Helper function to get start of week in PST
   const getStartOfWeekPST = () => {
@@ -82,7 +88,9 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       
       // Get start of week in PST
       const startOfWeekPST = getStartOfWeekPST();
+      const currentDatePST = getCurrentDatePST();
       console.log('Start of week PST:', startOfWeekPST);
+      console.log('Current date PST:', currentDatePST);
 
       // Get active injuries
       const { data: injuries, error: injuriesError } = await supabase
@@ -97,13 +105,14 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Active injuries loaded:', injuries?.length || 0);
       }
 
-      // Get goals achieved this week
+      // Get goals achieved this week (using PST dates for comparison)
       const { data: goalsAchievedThisWeek, error: goalsError } = await supabase
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'achieved')
-        .gte('achieved_date', startOfWeekPST);
+        .gte('achieved_date', startOfWeekPST)
+        .lte('achieved_date', currentDatePST);
 
       if (goalsError) {
         console.error('Error loading goals achieved this week:', goalsError);
