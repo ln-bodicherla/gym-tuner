@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart, X } from "lucide-react";
+import { AlertCircle, Play, Square, CheckCircle2, Clock, Dumbbell, Target, Plus, RotateCcw, Crown, Lock, TrendingUp, BarChart3, PieChart, LineChart, X, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -179,124 +179,6 @@ const WorkoutPlan = () => {
     }
   };
 
-  const generateIntelligentWorkout = () => {
-    const { profile, injuries, goals, workouts } = userData;
-    
-    // Determine difficulty level
-    let difficultyLevel = 'beginner';
-    if (profile?.fitness_level) {
-      difficultyLevel = profile.fitness_level;
-    }
-
-    // Determine duration based on profile preferences and goals
-    let duration = 45; // default
-    if (profile?.max_workout_time) {
-      duration = Math.min(profile.max_workout_time, 90);
-    }
-    if (profile?.min_workout_time) {
-      duration = Math.max(duration, profile.min_workout_time);
-    }
-
-    // Check for active injuries to avoid problematic exercises
-    const activeInjuries = injuries.filter(injury => injury.status === 'active');
-    const hasKneeInjury = activeInjuries.some(injury => 
-      injury.name.toLowerCase().includes('knee') || 
-      injury.notes?.toLowerCase().includes('knee')
-    );
-    const hasBackInjury = activeInjuries.some(injury => 
-      injury.name.toLowerCase().includes('back') || 
-      injury.notes?.toLowerCase().includes('back')
-    );
-    const hasShoulderInjury = activeInjuries.some(injury => 
-      injury.name.toLowerCase().includes('shoulder') || 
-      injury.notes?.toLowerCase().includes('shoulder')
-    );
-
-    // Analyze recent workout patterns
-    const recentWorkoutTypes = workouts.map(w => w.name.toLowerCase());
-    const hasRecentCardio = recentWorkoutTypes.some(name => 
-      name.includes('cardio') || name.includes('running') || name.includes('hiit')
-    );
-    const hasRecentStrength = recentWorkoutTypes.some(name => 
-      name.includes('strength') || name.includes('push') || name.includes('pull') || name.includes('leg')
-    );
-
-    // Generate workout based on analysis
-    const workoutTypes = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'HIIT', 'Cardio Blast', 'Core Focus', 'Flexibility & Mobility'];
-    let selectedType = workoutTypes[Math.floor(Math.random() * workoutTypes.length)];
-
-    // Adjust based on recent workouts
-    if (hasRecentCardio && !hasRecentStrength) {
-      selectedType = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body'][Math.floor(Math.random() * 4)];
-    } else if (hasRecentStrength && !hasRecentCardio) {
-      selectedType = ['HIIT', 'Cardio Blast'][Math.floor(Math.random() * 2)];
-    }
-
-    // Generate exercises based on workout type and constraints
-    let exercises: Exercise[] = [];
-
-    if (selectedType === 'Push Day' && !hasShoulderInjury) {
-      exercises = [
-        { name: 'Push-ups', sets: difficultyLevel === 'beginner' ? 2 : 3, reps: '8-12', rest: '60s', completed: false },
-        { name: 'Shoulder Press', sets: 3, reps: '10-12', rest: '60s', completed: false },
-        { name: 'Chest Press', sets: 3, reps: '10-15', rest: '90s', completed: false },
-        { name: 'Tricep Dips', sets: 2, reps: '8-10', rest: '45s', completed: false },
-      ];
-    } else if (selectedType === 'Pull Day' && !hasBackInjury) {
-      exercises = [
-        { name: 'Pull-ups/Assisted Pull-ups', sets: 3, reps: '5-8', rest: '90s', completed: false },
-        { name: 'Rows', sets: 3, reps: '12-15', rest: '60s', completed: false },
-        { name: 'Lat Pulldowns', sets: 3, reps: '10-12', rest: '60s', completed: false },
-        { name: 'Bicep Curls', sets: 2, reps: '12-15', rest: '45s', completed: false },
-      ];
-    } else if (selectedType === 'Leg Day' && !hasKneeInjury) {
-      exercises = [
-        { name: 'Squats', sets: 3, reps: '12-15', rest: '90s', completed: false },
-        { name: 'Lunges', sets: 2, reps: '10 each leg', rest: '60s', completed: false },
-        { name: 'Calf Raises', sets: 3, reps: '15-20', rest: '30s', completed: false },
-        { name: 'Glute Bridges', sets: 3, reps: '15-20', rest: '45s', completed: false },
-      ];
-    } else if (selectedType === 'HIIT') {
-      exercises = [
-        { name: 'Burpees', sets: 3, reps: '30s work, 30s rest', rest: '60s', completed: false },
-        { name: 'Mountain Climbers', sets: 3, reps: '30s work, 30s rest', rest: '60s', completed: false },
-        { name: 'Jumping Jacks', sets: 3, reps: '45s work, 15s rest', rest: '60s', completed: false },
-        { name: 'High Knees', sets: 2, reps: '30s work, 30s rest', rest: '45s', completed: false },
-      ];
-    } else {
-      // Safe default workout for any injury constraints
-      exercises = [
-        { name: 'Wall Push-ups', sets: 2, reps: '10-12', rest: '60s', completed: false },
-        { name: 'Seated Leg Extensions', sets: 2, reps: '12-15', rest: '60s', completed: false },
-        { name: 'Arm Circles', sets: 2, reps: '10 each direction', rest: '30s', completed: false },
-        { name: 'Gentle Stretching', sets: 1, reps: '5 minutes', rest: '0s', completed: false },
-      ];
-      selectedType = 'Adaptive Workout';
-    }
-
-    // Generate description based on user data
-    let description = `AI-generated ${selectedType} workout`;
-    if (profile?.fitness_level) {
-      description += ` tailored for ${profile.fitness_level} level`;
-    }
-    if (activeInjuries.length > 0) {
-      description += ` with modifications for current injuries`;
-    }
-    if (goals.length > 0) {
-      description += ` aligned with your fitness goals`;
-    }
-
-    return {
-      name: selectedType,
-      description,
-      exercises,
-      duration_minutes: duration,
-      difficulty_level: difficultyLevel,
-      status: 'scheduled' as const,
-      scheduled_date: new Date().toISOString().split('T')[0],
-    };
-  };
-
   const checkExistingPlanForToday = () => {
     const today = new Date().toISOString().split('T')[0];
     return workoutPlans.some(plan => 
@@ -328,11 +210,11 @@ const WorkoutPlan = () => {
 
       const newPlan: WorkoutPlan = normalizeWorkoutPlanData(data);
       setWorkoutPlans(prev => [newPlan, ...prev]);
-      await logActivity('plan_generated', `Generated new workout plan: ${planData.name}`);
+      await logActivity('plan_generated', `Generated new AI workout plan: ${planData.name}`);
       
       toast({
         title: "Success",
-        description: "Workout plan saved successfully!",
+        description: "AI-powered workout plan generated successfully!",
       });
 
       return newPlan;
@@ -344,6 +226,68 @@ const WorkoutPlan = () => {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const generateWorkout = async () => {
+    if (!hasAccess()) {
+      toast({
+        title: "Subscription Required",
+        description: "Please upgrade to Pro to generate AI workout plans.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (checkExistingPlanForToday()) {
+      toast({
+        title: "Plan Already Exists",
+        description: "You already have a workout plan scheduled for today. Complete or delete it first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      console.log('Calling Gemini AI for workout generation...');
+      
+      // Call the Supabase Edge Function for Gemini AI generation
+      const { data, error } = await supabase.functions.invoke('generate-workout', {
+        body: { userData }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to generate workout with AI');
+      }
+
+      if (!data?.workoutPlan) {
+        throw new Error('No workout plan received from AI');
+      }
+
+      const workoutPlan = {
+        ...data.workoutPlan,
+        status: 'scheduled' as const,
+        scheduled_date: new Date().toISOString().split('T')[0],
+      };
+      
+      const newPlan = await saveWorkoutPlan(workoutPlan);
+      setActiveTab("scheduled");
+      
+      toast({
+        title: "AI Workout Generated!",
+        description: `Created a personalized ${workoutPlan.name} using Gemini Flash 2.0 AI based on your profile and goals.`,
+      });
+    } catch (error) {
+      console.error('Error generating workout:', error);
+      toast({
+        title: "Error",
+        description: `Failed to generate AI workout: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -490,52 +434,6 @@ const WorkoutPlan = () => {
     }
   };
 
-  const generateWorkout = async () => {
-    if (!hasAccess()) {
-      toast({
-        title: "Subscription Required",
-        description: "Please upgrade to Pro to generate AI workout plans.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (checkExistingPlanForToday()) {
-      toast({
-        title: "Plan Already Exists",
-        description: "You already have a workout plan scheduled for today. Complete or delete it first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generate intelligent workout based on all user data
-      const workoutPlan = generateIntelligentWorkout();
-      
-      const newPlan = await saveWorkoutPlan(workoutPlan);
-      setActiveTab("scheduled");
-      
-      toast({
-        title: "Workout Generated!",
-        description: `Created a personalized ${workoutPlan.name} based on your profile, goals, and workout history.`,
-      });
-    } catch (error) {
-      console.error('Error generating workout:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate workout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const startWorkout = async (plan: WorkoutPlan) => {
     try {
       const updatedPlan = await updateWorkoutPlan(plan.id, { status: 'in-progress' });
@@ -657,11 +555,22 @@ const WorkoutPlan = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Workout Plans</h1>
-          <p className="text-gray-600 mt-1">AI-powered workout generation and analytics</p>
+          <h1 className="text-3xl font-bold text-gray-900">AI Workout Plans</h1>
+          <p className="text-gray-600 mt-1">
+            <span className="inline-flex items-center">
+              <Sparkles className="h-4 w-4 mr-1 text-purple-500" />
+              Powered by Gemini Flash 2.0 AI
+            </span>
+          </p>
         </div>
         {hasAccess() && (
-          <SubscriptionCard hasAccess={true} onUpgrade={handleUpgradeClick} compact={true} />
+          <SubscriptionCard 
+            hasAccess={true} 
+            onUpgrade={handleUpgradeClick} 
+            compact={true}
+            isInTrial={subscriptionInfo?.trialEnd ? new Date(subscriptionInfo.trialEnd) > new Date() : false}
+            trialDaysRemaining={subscriptionInfo?.trialEnd ? Math.max(0, Math.ceil((new Date(subscriptionInfo.trialEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0}
+          />
         )}
       </div>
 
@@ -671,9 +580,9 @@ const WorkoutPlan = () => {
             value="generate" 
             className={`flex items-center ${isMobile ? 'justify-center px-2 py-2 text-xs' : 'space-x-2'}`}
           >
-            <Target className="h-4 w-4" />
-            {!isMobile && <span>Generate</span>}
-            {isMobile && <span className="ml-1">Generate</span>}
+            <Sparkles className="h-4 w-4" />
+            {!isMobile && <span>AI Generate</span>}
+            {isMobile && <span className="ml-1">AI Gen</span>}
             {!hasAccess() && <Crown className="h-3 w-3 text-yellow-500 ml-1" />}
           </TabsTrigger>
           <TabsTrigger 
@@ -716,19 +625,21 @@ const WorkoutPlan = () => {
             {!hasAccess() ? (
               <LockedFeature
                 title="AI Workout Generation"
-                description="Get personalized workout plans based on your profile and goals"
-                icon={<Target className="h-4 w-4 sm:h-5 sm:w-5 text-white" />}
+                description="Get personalized workout plans powered by Gemini Flash 2.0 AI"
+                icon={<Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />}
                 onUpgrade={handleUpgradeClick}
               />
             ) : (
-              <Card>
+              <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-blue-600" />
-                    <span>Generate New Workout</span>
+                    <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-lg">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                    <span>Generate AI Workout</span>
                   </CardTitle>
                   <CardDescription>
-                    Get a personalized workout plan based on your profile, goals, injuries, and workout history
+                    Get a personalized workout plan powered by Gemini Flash 2.0 AI, based on your profile, goals, injuries, and workout history
                   </CardDescription>
                   {todayHasPlan && (
                     <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -741,9 +652,12 @@ const WorkoutPlan = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Show user data status */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">Data Considered for Generation:</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      AI Analysis Data:
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
                       <div className="flex items-center">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         Profile: {userData.profile ? 'Complete' : 'Basic'}
@@ -766,18 +680,18 @@ const WorkoutPlan = () => {
                   <Button 
                     onClick={generateWorkout} 
                     disabled={isGenerating || todayHasPlan}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     size="lg"
                   >
                     {isGenerating ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Analyzing Your Data & Generating...
+                        Gemini AI is analyzing your data...
                       </>
                     ) : (
                       <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Generate Intelligent Workout Plan
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate AI Workout Plan
                       </>
                     )}
                   </Button>
@@ -856,16 +770,19 @@ const WorkoutPlan = () => {
                 <CardContent className="text-center py-8">
                   <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No scheduled workouts</p>
-                  <p className="text-sm text-gray-500 mt-2">Generate a new workout to get started!</p>
+                  <p className="text-sm text-gray-500 mt-2">Generate a new AI workout to get started!</p>
                 </CardContent>
               </Card>
             ) : (
               scheduledPlans.map((plan) => (
-                <Card key={plan.id} className="hover:shadow-md transition-shadow">
+                <Card key={plan.id} className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-lg">{plan.name}</CardTitle>
+                        <CardTitle className="text-lg flex items-center">
+                          <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                          {plan.name}
+                        </CardTitle>
                         <CardDescription>{plan.description}</CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -923,7 +840,10 @@ const WorkoutPlan = () => {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-xl text-blue-800">{currentWorkout.name}</CardTitle>
+                      <CardTitle className="text-xl text-blue-800 flex items-center">
+                        <Sparkles className="h-5 w-5 mr-2 text-purple-500" />
+                        {currentWorkout.name}
+                      </CardTitle>
                       <CardDescription className="text-blue-600">{currentWorkout.description}</CardDescription>
                     </div>
                     <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Progress</Badge>
@@ -995,7 +915,10 @@ const WorkoutPlan = () => {
               activePlans.map((plan) => (
                 <Card key={plan.id} className="border-blue-200">
                   <CardHeader>
-                    <CardTitle>{plan.name}</CardTitle>
+                    <CardTitle className="flex items-center">
+                      <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                      {plan.name}
+                    </CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1025,7 +948,7 @@ const WorkoutPlan = () => {
                 <CardContent className="text-center py-8">
                   <CheckCircle2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No completed workouts yet</p>
-                  <p className="text-sm text-gray-500 mt-2">Complete your first workout to see it here!</p>
+                  <p className="text-sm text-gray-500 mt-2">Complete your first AI workout to see it here!</p>
                 </CardContent>
               </Card>
             ) : (
@@ -1034,7 +957,10 @@ const WorkoutPlan = () => {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-green-800">{plan.name}</CardTitle>
+                        <CardTitle className="text-green-800 flex items-center">
+                          <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+                          {plan.name}
+                        </CardTitle>
                         <CardDescription className="text-green-600">
                           Completed on {new Date(plan.completed_date!).toLocaleDateString()}
                         </CardDescription>
