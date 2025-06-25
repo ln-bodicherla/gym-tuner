@@ -29,10 +29,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
         
         if (event === 'SIGNED_OUT') {
-          console.log('User signed out, clearing state and redirecting');
-          // Clear all state immediately
+          console.log('User signed out, clearing all state');
+          // Ensure state is completely cleared
           setSession(null);
           setUser(null);
+          // Clear any remaining auth data from storage
+          localStorage.removeItem('supabase.auth.token');
+          sessionStorage.clear();
           // Force redirect to landing page after sign out
           window.location.href = '/';
         } else if (event === 'SIGNED_IN' && session?.user) {
@@ -81,29 +84,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      console.log('Initiating sign out...');
+      console.log('Initiating complete sign out...');
       
       // Clear local state first
       setSession(null);
       setUser(null);
       
-      // Sign out from Supabase (this clears the session from database)
-      const { error } = await supabase.auth.signOut();
+      // Sign out from Supabase with 'local' scope to clear browser storage
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
-        console.error('Error signing out:', error);
-        throw error;
+        console.error('Error signing out from Supabase:', error);
       }
       
-      console.log('Successfully signed out from Supabase');
+      // Force clear all auth-related storage
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-icicfihvflooltswigjb-auth-token');
+      sessionStorage.clear();
+      
+      console.log('Successfully cleared all authentication data');
       
       // Force redirect to landing page
       window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
-      // Even if there's an error, clear local state and redirect
+      // Even if there's an error, clear everything and redirect
       setSession(null);
       setUser(null);
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = '/';
     }
   };
