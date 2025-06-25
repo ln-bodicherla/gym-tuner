@@ -75,7 +75,7 @@ const WorkoutPlan = () => {
 
       if (data && data.workout) {
         setWorkoutPlan(data.workout);
-        await logActivity('workout_plan_generated', `Generated workout plan: ${data.workout.name}`);
+        await logActivity('plan_generated', `Generated workout plan: ${data.workout.name}`);
         
         toast({
           title: "Workout Generated!",
@@ -107,14 +107,14 @@ const WorkoutPlan = () => {
       
       console.log('Saving workout plan with PST date:', currentPSTDate, 'time:', currentPSTTime);
 
-      // First, save the workout plan
+      // First, save the workout plan - cast exercises to Json type
       const { data: savedPlan, error: planError } = await supabase
         .from('workout_plans')
         .insert({
           user_id: user.id,
           name: workoutPlan.name,
           description: `Generated workout plan with ${workoutPlan.exercises.length} exercises`,
-          exercises: workoutPlan.exercises,
+          exercises: workoutPlan.exercises as any, // Cast to Json type
           duration_minutes: workoutPlan.duration_minutes,
           difficulty_level: workoutPlan.difficulty_level,
           status: 'completed',
@@ -168,7 +168,7 @@ const WorkoutPlan = () => {
 
       if (workoutsError) throw workoutsError;
 
-      await logActivity('workout_plan_completed', `Completed and logged workout plan: ${workoutPlan.name}`);
+      await logActivity('workout_completed', `Completed and logged workout plan: ${workoutPlan.name}`);
 
       toast({
         title: "Workout Logged!",
