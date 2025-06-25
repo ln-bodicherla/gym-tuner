@@ -46,7 +46,27 @@ export const useUserProfile = () => {
         return;
       }
 
-      setProfile(profileData);
+      if (profileData) {
+        // Convert workout_schedule from Json to string[]
+        let workoutSchedule: string[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        if (profileData.workout_schedule) {
+          try {
+            if (Array.isArray(profileData.workout_schedule)) {
+              workoutSchedule = profileData.workout_schedule as string[];
+            } else if (typeof profileData.workout_schedule === 'string') {
+              workoutSchedule = JSON.parse(profileData.workout_schedule);
+            }
+          } catch (error) {
+            console.error('Error parsing workout_schedule:', error);
+          }
+        }
+
+        setProfile({
+          ...profileData,
+          workout_schedule: workoutSchedule
+        });
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {

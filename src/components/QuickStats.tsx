@@ -25,7 +25,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     weight: null,
     height: null,
     fitness_level: null,
-    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as string[]
   });
   const [loading, setLoading] = useState(true);
 
@@ -54,9 +54,25 @@ const QuickStats = ({ className }: QuickStatsProps) => {
 
       if (profileData) {
         console.log('Profile loaded successfully:', profileData);
+        
+        // Parse workout_schedule from Json to string[]
+        let workoutSchedule: string[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        if (profileData.workout_schedule) {
+          try {
+            if (Array.isArray(profileData.workout_schedule)) {
+              workoutSchedule = profileData.workout_schedule as string[];
+            } else if (typeof profileData.workout_schedule === 'string') {
+              workoutSchedule = JSON.parse(profileData.workout_schedule);
+            }
+          } catch (error) {
+            console.error('Error parsing workout_schedule:', error);
+          }
+        }
+
         setProfile({
           ...profileData,
-          workout_schedule: profileData.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+          workout_schedule: workoutSchedule
         });
       } else {
         console.log('No profile found for user');
@@ -130,7 +146,20 @@ const QuickStats = ({ className }: QuickStatsProps) => {
           .eq('id', user.id)
           .maybeSingle();
         
-        const workoutSchedule = profileData.data?.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        // Parse workout_schedule properly
+        let workoutSchedule: string[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        if (profileData.data?.workout_schedule) {
+          try {
+            if (Array.isArray(profileData.data.workout_schedule)) {
+              workoutSchedule = profileData.data.workout_schedule as string[];
+            } else if (typeof profileData.data.workout_schedule === 'string') {
+              workoutSchedule = JSON.parse(profileData.data.workout_schedule);
+            }
+          } catch (error) {
+            console.error('Error parsing workout_schedule for streak:', error);
+          }
+        }
+        
         workoutStreak = calculateWorkoutStreak(workouts || [], workoutSchedule);
         console.log('Calculated workout streak:', workoutStreak);
       }

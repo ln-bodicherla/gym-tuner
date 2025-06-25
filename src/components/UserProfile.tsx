@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ const UserProfile = () => {
     preferences: "",
     limitations: "",
     preferred_time: "",
-    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as string[]
   });
 
   useEffect(() => {
@@ -77,6 +78,22 @@ const UserProfile = () => {
 
       if (profileData) {
         console.log('Profile data loaded:', profileData);
+        
+        // Parse workout_schedule from Json to string[]
+        let workoutSchedule: string[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        if (profileData.workout_schedule) {
+          try {
+            if (Array.isArray(profileData.workout_schedule)) {
+              workoutSchedule = profileData.workout_schedule as string[];
+            } else if (typeof profileData.workout_schedule === 'string') {
+              workoutSchedule = JSON.parse(profileData.workout_schedule);
+            }
+          } catch (error) {
+            console.error('Error parsing workout_schedule:', error);
+          }
+        }
+
         setProfile(prev => ({
           ...prev,
           name: profileData.full_name || prev.name,
@@ -95,7 +112,7 @@ const UserProfile = () => {
           preferences: profileData.preferences || "",
           limitations: profileData.limitations || "",
           preferred_time: profileData.preferred_time?.toString() || "",
-          workout_schedule: profileData.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+          workout_schedule: workoutSchedule
         }));
       } else {
         console.log('No profile data found, will create new profile on save');
@@ -105,9 +122,12 @@ const UserProfile = () => {
     }
   };
 
-  const handleWorkoutScheduleChange = (day: string, checked: boolean) => {
+  const handleWorkoutScheduleChange = (day: string, checked: boolean | string) => {
+    // Ensure checked is a boolean
+    const isChecked = typeof checked === 'boolean' ? checked : checked === 'true';
+    
     setProfile(prev => {
-      const newSchedule = checked 
+      const newSchedule = isChecked 
         ? [...prev.workout_schedule, day]
         : prev.workout_schedule.filter(d => d !== day);
       
@@ -454,7 +474,7 @@ const UserProfile = () => {
                       <Checkbox
                         id={day.value}
                         checked={profile.workout_schedule.includes(day.value)}
-                        onCheckedChange={(checked) => handleWorkoutScheduleChange(day.value, checked)}
+                        onCheckedChange={(checked) => handleWorkoutScheduleChange(day.value, checked as boolean)}
                       />
                       <Label htmlFor={day.value} className="text-sm font-normal">
                         {day.label}
