@@ -12,7 +12,6 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Activity from "./pages/Activity";
 import Analytics from "./pages/Analytics";
-import Admin from "./pages/Admin";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -46,7 +45,6 @@ function App() {
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/admin" element={<Admin />} />
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Index />
