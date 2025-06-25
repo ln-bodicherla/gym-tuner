@@ -32,13 +32,6 @@ interface AdminAnalytics {
   users_today: number;
   active_subscribers: number;
   inactive_subscribers: number;
-  basic_subscribers: number;
-  premium_subscribers: number;
-  enterprise_subscribers: number;
-  total_sessions: number;
-  sessions_last_30_days: number;
-  total_page_views: number;
-  page_views_last_30_days: number;
   total_workouts: number;
   workouts_last_30_days: number;
   total_workout_plans: number;
@@ -63,7 +56,7 @@ interface UserDetails {
 }
 
 const Admin = () => {
-  const { isAuthenticated, loading, adminInfo, login, logout, getAnalytics } = useAdminAuth();
+  const { isAuthenticated, loading, adminInfo, login, logout } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
@@ -71,6 +64,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -127,9 +121,81 @@ const Admin = () => {
   };
 
   const loadAnalytics = async () => {
+    setAnalyticsLoading(true);
     try {
-      const data = await getAnalytics();
-      setAnalytics(data);
+      console.log('Loading analytics data...');
+      
+      // Get users with auth admin API
+      const { data: authData } = await supabase.auth.admin.listUsers();
+      const allUsers = authData?.users || [];
+      console.log('Total auth users:', allUsers.length);
+
+      // Calculate date ranges
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const usersToday = allUsers.filter(user => 
+        new Date(user.created_at) >= today
+      ).length;
+
+      const usersLast7Days = allUsers.filter(user => 
+        new Date(user.created_at) >= sevenDaysAgo
+      ).length;
+
+      const usersLast30Days = allUsers.filter(user => 
+        new Date(user.created_at) >= thirtyDaysAgo
+      ).length;
+
+      // Get subscription data
+      const { data: subscribers, count: subscribersCount } = await supabase
+        .from('subscribers')
+        .select('subscribed, subscription_tier', { count: 'exact' });
+
+      const activeSubscribers = subscribers?.filter(s => s.subscribed === true).length || 0;
+      const inactiveSubscribers = (subscribersCount || 0) - activeSubscribers;
+
+      // Get activity data
+      const { count: totalWorkouts } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: workoutsLast30Days } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const { count: totalWorkoutPlans } = await supabase
+        .from('workout_plans')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: totalGoals } = await supabase
+        .from('goals')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: totalInjuries } = await supabase
+        .from('injuries')
+        .select('*', { count: 'exact', head: true });
+
+      const analyticsData: AdminAnalytics = {
+        total_users: allUsers.length,
+        users_today: usersToday,
+        users_last_7_days: usersLast7Days,
+        users_last_30_days: usersLast30Days,
+        active_subscribers: activeSubscribers,
+        inactive_subscribers: inactiveSubscribers,
+        total_workouts: totalWorkouts || 0,
+        workouts_last_30_days: workoutsLast30Days || 0,
+        total_workout_plans: totalWorkoutPlans || 0,
+        total_goals: totalGoals || 0,
+        total_injuries: totalInjuries || 0,
+      };
+
+      console.log('Analytics data loaded:', analyticsData);
+      setAnalytics(analyticsData);
     } catch (error) {
       console.error('Failed to load analytics:', error);
       toast({
@@ -137,21 +203,99 @@ const Admin = () => {
         description: "Failed to load analytics data",
         variant: "destructive",
       });
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) throw new Error('No admin session');
+      console.log('Loading users data...');
+      
+      // Get all users using the admin API
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+        throw authError;
+      }
 
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
-        body: { action: 'get_users', session_token: token }
+      const authUsers = authData?.users || [];
+      console.log(`Found ${authUsers.length} auth users`);
+
+      // Get profiles data
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name');
+
+      // Get subscription data
+      const { data: subscribers } = await supabase
+        .from('subscribers')
+        .select('user_id, subscribed, subscription_tier, subscription_end, trial_end');
+
+      // Get activity counts
+      const { data: workoutCounts } = await supabase
+        .from('workouts')
+        .select('user_id');
+
+      const { data: goalCounts } = await supabase
+        .from('goals')
+        .select('user_id');
+
+      const { data: injuryCounts } = await supabase
+        .from('injuries')
+        .select('user_id');
+
+      // Create lookup maps
+      const profileMap = new Map();
+      profiles?.forEach(profile => profileMap.set(profile.id, profile));
+
+      const subscriberMap = new Map();
+      subscribers?.forEach(sub => subscriberMap.set(sub.user_id, sub));
+
+      const workoutCountMap = new Map();
+      workoutCounts?.forEach(workout => {
+        const count = workoutCountMap.get(workout.user_id) || 0;
+        workoutCountMap.set(workout.user_id, count + 1);
       });
 
-      if (error) throw error;
-      setUsers(data.users || []);
+      const goalCountMap = new Map();
+      goalCounts?.forEach(goal => {
+        const count = goalCountMap.get(goal.user_id) || 0;
+        goalCountMap.set(goal.user_id, count + 1);
+      });
+
+      const injuryCountMap = new Map();
+      injuryCounts?.forEach(injury => {
+        const count = injuryCountMap.get(injury.user_id) || 0;
+        injuryCountMap.set(injury.user_id, count + 1);
+      });
+
+      // Combine all user data
+      const combinedUsers = authUsers.map(user => {
+        const profile = profileMap.get(user.id) || {};
+        const subscription = subscriberMap.get(user.id) || {};
+        
+        return {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          email_confirmed_at: user.email_confirmed_at,
+          full_name: profile.full_name || user.user_metadata?.full_name,
+          subscribed: subscription.subscribed || false,
+          subscription_tier: subscription.subscription_tier,
+          subscription_end: subscription.subscription_end,
+          trial_end: subscription.trial_end,
+          total_workouts: workoutCountMap.get(user.id) || 0,
+          total_goals: goalCountMap.get(user.id) || 0,
+          total_injuries: injuryCountMap.get(user.id) || 0,
+        };
+      });
+
+      console.log(`Loaded ${combinedUsers.length} users with complete data`);
+      setUsers(combinedUsers);
     } catch (error) {
       console.error('Failed to load users:', error);
       toast({
@@ -172,7 +316,7 @@ const Admin = () => {
   const getSubscriptionStatus = (user: UserDetails) => {
     const now = new Date();
     
-    // Check if user is currently in trial period (regardless of subscription status)
+    // Check if user is currently in trial period
     if (user.trial_end && new Date(user.trial_end) > now) {
       const trialDaysLeft = Math.ceil((new Date(user.trial_end).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return (
@@ -187,7 +331,7 @@ const Admin = () => {
       );
     }
     
-    // Check if user has an active PAID subscription (not in trial)
+    // Check if user has an active PAID subscription
     if (user.subscribed && user.subscription_end && new Date(user.subscription_end) > now) {
       return (
         <div className="flex flex-col gap-1">
@@ -330,109 +474,112 @@ const Admin = () => {
 
       <div className="px-6 py-8 max-w-7xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.total_users || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    +{analytics?.users_last_7_days || 0} this week
-                  </p>
-                </CardContent>
-              </Card>
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2">Loading analytics...</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.total_users || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        +{analytics?.users_last_7_days || 0} this week
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Subscribers</CardTitle>
-                  <Crown className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.active_subscribers || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {analytics?.inactive_subscribers || 0} inactive
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Subscribers</CardTitle>
+                      <Crown className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.active_subscribers || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {analytics?.inactive_subscribers || 0} inactive
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.total_sessions || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {analytics?.sessions_last_30_days || 0} last 30 days
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.total_workouts || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {analytics?.workouts_last_30_days || 0} this month
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.total_workouts || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {analytics?.workouts_last_30_days || 0} this month
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Workout Plans</CardTitle>
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics?.total_workout_plans || 0}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Total created
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Growth</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Today</span>
-                    <Badge variant="secondary">{analytics?.users_today || 0}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last 7 days</span>
-                    <Badge variant="secondary">{analytics?.users_last_7_days || 0}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last 30 days</span>
-                    <Badge variant="secondary">{analytics?.users_last_30_days || 0}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>User Growth</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Today</span>
+                        <Badge variant="secondary">{analytics?.users_today || 0}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Last 7 days</span>
+                        <Badge variant="secondary">{analytics?.users_last_7_days || 0}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Last 30 days</span>
+                        <Badge variant="secondary">{analytics?.users_last_30_days || 0}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>App Activity</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Workout Plans</span>
-                    <Badge variant="outline">{analytics?.total_workout_plans || 0}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Goals Set</span>
-                    <Badge variant="outline">{analytics?.total_goals || 0}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Injuries Tracked</span>
-                    <Badge variant="outline">{analytics?.total_injuries || 0}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>App Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Total Goals</span>
+                        <Badge variant="outline">{analytics?.total_goals || 0}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Injuries</span>
+                        <Badge variant="outline">{analytics?.total_injuries || 0}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
@@ -532,62 +679,6 @@ const Admin = () => {
                     )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="subscriptions" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Overview</CardTitle>
-                <CardDescription>
-                  Premium subscription analytics and revenue insights
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{analytics?.active_subscribers || 0}</div>
-                    <div className="text-sm text-gray-600">Active Subscribers</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-gray-600">{analytics?.inactive_subscribers || 0}</div>
-                    <div className="text-sm text-gray-600">Inactive</div>
-                  </div>
-                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">{analytics?.basic_subscribers || 0}</div>
-                    <div className="text-sm text-gray-600">Basic Plan</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Usage Analytics</CardTitle>
-                <CardDescription>
-                  Detailed app usage and engagement metrics
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Page Views</h4>
-                    <div className="text-3xl font-bold">{analytics?.total_page_views || 0}</div>
-                    <p className="text-sm text-gray-600">
-                      {analytics?.page_views_last_30_days || 0} in the last 30 days
-                    </p>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Sessions</h4>
-                    <div className="text-3xl font-bold">{analytics?.total_sessions || 0}</div>
-                    <p className="text-sm text-gray-600">
-                      {analytics?.sessions_last_30_days || 0} in the last 30 days
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
