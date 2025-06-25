@@ -122,16 +122,19 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Goals achieved this week loaded:', goalsAchievedThisWeek?.length || 0);
       }
 
-      // Get workouts for streak calculation (last 30 days should be enough)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoPST = thirtyDaysAgo.toISOString().split('T')[0];
+      // Get ALL workouts for streak calculation (extended range to ensure we get recent workouts)
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const sixtyDaysAgoPST = sixtyDaysAgo.toISOString().split('T')[0];
+
+      console.log('Fetching workouts from:', sixtyDaysAgoPST, 'to:', currentDatePST);
 
       const { data: workouts, error: workoutsError } = await supabase
         .from('workouts')
         .select('workout_date')
         .eq('user_id', user.id)
-        .gte('workout_date', thirtyDaysAgoPST)
+        .gte('workout_date', sixtyDaysAgoPST)
+        .lte('workout_date', currentDatePST)
         .order('workout_date', { ascending: false });
 
       let workoutStreak = 0;
@@ -139,7 +142,9 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.error('Error loading workouts for streak:', workoutsError);
       } else {
         console.log('Workouts for streak loaded:', workouts?.length || 0);
-        // Wait for profile to be loaded before calculating streak
+        console.log('Workout dates found:', workouts?.map(w => w.workout_date) || []);
+        
+        // Get the current profile's workout schedule for streak calculation
         const profileData = await supabase
           .from('profiles')
           .select('workout_schedule')
@@ -160,6 +165,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
           }
         }
         
+        console.log('Using workout schedule for streak calculation:', workoutSchedule);
         workoutStreak = calculateWorkoutStreak(workouts || [], workoutSchedule);
         console.log('Calculated workout streak:', workoutStreak);
       }
