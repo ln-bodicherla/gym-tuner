@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Users, Star, Crown, Check } from "lucide-react";
+import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Star, Crown, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AnalyticsButton } from "@/components/AnalyticsButton";
 
@@ -304,11 +304,9 @@ const Landing = () => {
             <div className="relative">
               <div className="bg-gradient-to-r from-blue-600 to-orange-500 rounded-2xl p-8 text-white">
                 <div className="text-center">
-                  <Users className="h-12 w-12 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold mb-2">Join 10,000+ Users</h3>
-                  <p className="text-blue-100 mb-6">
-                    Already transforming their fitness journey with Gym Tuner
-                  </p>
+                  <h3 className="text-2xl font-bold mb-6">
+                    Start Your Fitness Journey Today
+                  </h3>
                   <Link to="/auth">
                     <AnalyticsButton 
                       variant="secondary" 
