@@ -17,7 +17,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
     
     const { action, email, password, session_token } = await req.json()
 
@@ -197,8 +202,10 @@ serve(async (req) => {
         )
       }
 
-      // Get all users with their subscription and activity data
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+      console.log('Fetching users with admin API...')
+
+      // Get all users using the admin API (this is the correct way)
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers()
       
       if (authError) {
         console.error('Error fetching auth users:', authError)
@@ -207,6 +214,9 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
       }
+
+      const authUsers = authData?.users || []
+      console.log(`Found ${authUsers.length} auth users`)
 
       // Get subscription data
       const { data: subscribers, error: subError } = await supabase
@@ -265,7 +275,7 @@ serve(async (req) => {
       })
 
       // Combine all user data
-      const users = authUsers.users.map(user => {
+      const users = authUsers.map(user => {
         const subscription = subscriberMap.get(user.id) || {}
         const profile = profileMap.get(user.id) || {}
         
@@ -285,6 +295,8 @@ serve(async (req) => {
           total_injuries: injuryCountMap.get(user.id) || 0,
         }
       })
+
+      console.log(`Returning ${users.length} users with complete data`)
 
       return new Response(
         JSON.stringify({ users }),
@@ -314,9 +326,9 @@ serve(async (req) => {
         )
       }
 
-      // Get analytics data
-      const { data: authUsers } = await supabase.auth.admin.listUsers()
-      const totalUsers = authUsers?.users?.length || 0
+      // Get analytics data using admin API
+      const { data: authData } = await supabase.auth.admin.listUsers()
+      const totalUsers = authData?.users?.length || 0
 
       // Get users from different time periods
       const now = new Date()
@@ -326,25 +338,27 @@ serve(async (req) => {
       const thirtyDaysAgo = new Date(today)
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-      const usersToday = authUsers?.users?.filter(user => 
+      const usersToday = authData?.users?.filter(user => 
         new Date(user.created_at) >= today
       ).length || 0
 
-      const usersLast7Days = authUsers?.users?.filter(user => 
+      const usersLast7Days = authData?.users?.filter(user => 
         new Date(user.created_at) >= sevenDaysAgo
       ).length || 0
 
-      const usersLast30Days = authUsers?.users?.filter(user => 
+      const usersLast30Days = authData?.users?.filter(user => 
         new Date(user.created_at) >= thirtyDaysAgo
       ).length || 0
 
-      // Get subscription data
+      // Get subscription data with proper filtering
       const { data: subscribers } = await supabase
         .from('subscribers')
         .select('subscribed, subscription_tier')
 
-      const activeSubscribers = subscribers?.filter(s => s.subscribed).length || 0
-      const inactiveSubscribers = subscribers?.filter(s => !s.subscribed).length || 0
+      // Only count actual subscribed users, not all subscriber records
+      const activeSubscribers = subscribers?.filter(s => s.subscribed === true).length || 0
+      // Count users who have subscriber records but are not actively subscribed
+      const inactiveSubscribers = subscribers?.filter(s => s.subscribed === false).length || 0
 
       // Get activity data
       const { data: workouts } = await supabase.from('workouts').select('id, created_at')
@@ -386,6 +400,8 @@ serve(async (req) => {
         total_goals: goals?.length || 0,
         total_injuries: injuries?.length || 0,
       }
+
+      console.log('Analytics data:', analytics)
 
       return new Response(
         JSON.stringify(analytics),
