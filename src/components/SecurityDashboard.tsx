@@ -1,25 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { Shield, Activity, AlertTriangle, Users } from 'lucide-react';
 
-interface SecurityAuditEvent {
-  id: string;
-  user_id: string;
-  action: string;
-  resource_type?: string;
-  resource_id?: string;
-  ip_address?: string;
-  user_agent?: string;
-  success: boolean;
-  error_message?: string;
-  metadata?: any;
-  created_at: string;
-}
-
 const SecurityDashboard = () => {
-  const [auditEvents, setAuditEvents] = useState<SecurityAuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalEvents: 0,
@@ -29,79 +14,15 @@ const SecurityDashboard = () => {
   });
 
   useEffect(() => {
-    loadSecurityData();
+    // Since we removed the security audit system, just show placeholder data
+    setStats({
+      totalEvents: 0,
+      failedAttempts: 0,
+      uniqueUsers: 0,
+      recentLogins: 0
+    });
+    setLoading(false);
   }, []);
-
-  const loadSecurityData = async () => {
-    try {
-      // Load recent audit events
-      const { data: events, error: eventsError } = await supabase
-        .from('security_audit_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (eventsError) throw eventsError;
-
-      // Transform the data to match our interface, handling the ip_address type properly
-      const transformedEvents: SecurityAuditEvent[] = (events || []).map(event => ({
-        ...event,
-        ip_address: event.ip_address ? String(event.ip_address) : undefined
-      }));
-
-      setAuditEvents(transformedEvents);
-
-      // Calculate stats
-      const totalEvents = transformedEvents.length;
-      const failedAttempts = transformedEvents.filter(e => !e.success).length;
-      const uniqueUsers = new Set(transformedEvents.map(e => e.user_id)).size;
-      const recentLogins = transformedEvents.filter(e => 
-        e.action === 'user_login' && 
-        new Date(e.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-      ).length;
-
-      setStats({
-        totalEvents,
-        failedAttempts,
-        uniqueUsers,
-        recentLogins
-      });
-
-    } catch (error) {
-      console.error('Error loading security data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getActionBadgeColor = (action: string, success: boolean) => {
-    if (!success) return 'bg-red-100 text-red-800';
-    
-    switch (action) {
-      case 'user_login':
-        return 'bg-green-100 text-green-800';
-      case 'user_logout':
-        return 'bg-blue-100 text-blue-800';
-      case 'data_access':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatTimeAgo = (date: string) => {
-    const now = new Date();
-    const eventDate = new Date(date);
-    const diffMs = now.getTime() - eventDate.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) return `${diffDays}d ago`;
-    if (diffHours > 0) return `${diffHours}h ago`;
-    if (diffMins > 0) return `${diffMins}m ago`;
-    return 'Just now';
-  };
 
   if (loading) {
     return (
@@ -166,54 +87,19 @@ const SecurityDashboard = () => {
         </Card>
       </div>
 
-      {/* Recent Security Events */}
+      {/* Security Events */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Shield className="h-5 w-5" />
-            <span>Recent Security Events</span>
+            <span>Security Events</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {auditEvents.length === 0 ? (
-              <p className="text-gray-500">No security events recorded yet.</p>
-            ) : (
-              auditEvents.map(event => (
-                <div key={event.id} className="flex items-center justify-between py-3 px-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Badge className={getActionBadgeColor(event.action, event.success)}>
-                      {event.action.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                    <div>
-                      <p className="font-medium">
-                        {event.action.replace('_', ' ')}
-                      </p>
-                      {event.resource_type && (
-                        <p className="text-sm text-gray-600">
-                          {event.resource_type}: {event.resource_id}
-                        </p>
-                      )}
-                      {event.error_message && (
-                        <p className="text-sm text-red-600">
-                          Error: {event.error_message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">
-                      {formatTimeAgo(event.created_at)}
-                    </p>
-                    {event.ip_address && (
-                      <p className="text-xs text-gray-400">
-                        {event.ip_address}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="text-center py-8 text-gray-500">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>Security audit system has been simplified.</p>
+            <p className="text-sm mt-2">Events are now logged to console for debugging purposes.</p>
           </div>
         </CardContent>
       </Card>
