@@ -248,8 +248,10 @@ export type Database = {
           height: string | null
           id: string
           limitations: string | null
+          location: string | null
           max_workout_time: number | null
           min_workout_time: number | null
+          phone: string | null
           preferences: string | null
           preferred_time: number | null
           preferred_workout_types: string | null
@@ -267,8 +269,10 @@ export type Database = {
           height?: string | null
           id: string
           limitations?: string | null
+          location?: string | null
           max_workout_time?: number | null
           min_workout_time?: number | null
+          phone?: string | null
           preferences?: string | null
           preferred_time?: number | null
           preferred_workout_types?: string | null
@@ -286,8 +290,10 @@ export type Database = {
           height?: string | null
           id?: string
           limitations?: string | null
+          location?: string | null
           max_workout_time?: number | null
           min_workout_time?: number | null
+          phone?: string | null
           preferences?: string | null
           preferred_time?: number | null
           preferred_workout_types?: string | null
