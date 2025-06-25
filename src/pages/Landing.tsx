@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Crown, Check, Clock } from "lucide-react";
+import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Crown, Check, Clock, Dumbbell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AnalyticsButton } from "@/components/AnalyticsButton";
 
@@ -49,11 +49,9 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <img 
-                src="/lovable-uploads/5e825f2e-98c7-4e9c-87a9-1b104539f992.png" 
-                alt="Gym Tuner Logo" 
-                className="h-8 w-8 rounded-lg object-cover"
-              />
+              <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
+                <Dumbbell className="h-5 w-5 text-white" />
+              </div>
               <span className="text-xl font-bold text-gray-900">Gym Tuner</span>
             </div>
             
@@ -312,11 +310,9 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center space-x-3 mb-4">
-                <img 
-                  src="/lovable-uploads/5e825f2e-98c7-4e9c-87a9-1b104539f992.png" 
-                  alt="Gym Tuner Logo" 
-                  className="h-8 w-8 rounded-lg object-cover"
-                />
+                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
+                  <Dumbbell className="h-5 w-5 text-white" />
+                </div>
                 <span className="text-xl font-bold">Gym Tuner</span>
               </div>
               <p className="text-gray-400 mb-4">
