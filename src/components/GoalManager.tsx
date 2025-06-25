@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,19 +187,19 @@ const GoalManager = () => {
     try {
       const goal = goals.find(g => g.id === goalId);
       
-      console.log('Deleting goal:', goalId);
+      console.log('Deleting goal from database:', goalId);
       const { error } = await supabase
         .from('goals')
         .delete()
         .eq('id', goalId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id); // Ensure user can only delete their own goals
 
       if (error) {
-        console.error('Error deleting goal:', error);
+        console.error('Error deleting goal from database:', error);
         throw error;
       }
 
-      console.log('Goal deleted successfully');
+      console.log('Goal successfully deleted from database');
 
       if (goal) {
         await logActivity('goal_deleted', `Deleted goal: ${goal.title}`);
@@ -208,15 +207,16 @@ const GoalManager = () => {
 
       toast({
         title: "Goal Removed",
-        description: "Goal has been deleted successfully.",
+        description: "Goal has been deleted successfully from the database.",
       });
 
+      // Refresh the goals list to reflect the deletion
       fetchGoals();
     } catch (error) {
       console.error('Error removing goal:', error);
       toast({
         title: "Error",
-        description: "Failed to remove goal. Please try again.",
+        description: "Failed to remove goal from database. Please try again.",
         variant: "destructive"
       });
     }

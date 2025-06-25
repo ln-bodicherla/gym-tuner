@@ -1,12 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Target, Activity, AlertTriangle, Heart, Clock, User, Weight, Ruler } from "lucide-react";
+import { Target, Activity, AlertTriangle, Heart, Clock, User, Weight, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 
 interface QuickStatsProps {
@@ -21,7 +20,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     completedWorkouts: 0,
     activeInjuries: 0,
     currentStreak: 0,
-    achievedGoalsCount: 0
+    goalsAchievedThisWeek: 0
   });
   const [profile, setProfile] = useState({
     max_workout_time: null,
@@ -196,32 +195,33 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Active injuries loaded:', injuries?.length || 0);
       }
 
-      // Get achieved goals count
-      const { data: achievedGoals, error: goalsError } = await supabase
+      // Get goals achieved this week
+      const { data: goalsAchievedThisWeek, error: goalsError } = await supabase
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'achieved');
+        .eq('status', 'achieved')
+        .gte('achieved_date', startOfWeekPST);
 
       if (goalsError) {
-        console.error('Error loading achieved goals:', goalsError);
+        console.error('Error loading goals achieved this week:', goalsError);
       } else {
-        console.log('Achieved goals loaded:', achievedGoals?.length || 0);
+        console.log('Goals achieved this week loaded:', goalsAchievedThisWeek?.length || 0);
       }
 
       // Calculate streak from consecutive workout days
       const streak = calculateConsecutiveWorkoutStreak(allWorkouts || []);
 
-      // Calculate dynamic weekly goal based on achieved goals
+      // Calculate dynamic weekly goal based on achieved goals this week
       const baseWeeklyGoal = profile?.weekly_goal || 4;
-      const achievedGoalsCount = achievedGoals?.length || 0;
-      const dynamicWeeklyGoal = Math.max(baseWeeklyGoal + Math.floor(achievedGoalsCount / 2), baseWeeklyGoal);
+      const goalsAchievedCount = goalsAchievedThisWeek?.length || 0;
+      const dynamicWeeklyGoal = Math.max(baseWeeklyGoal + Math.floor(goalsAchievedCount / 2), baseWeeklyGoal);
 
       console.log('Stats calculated:', {
         weeklyWorkouts: weeklyWorkouts?.length || 0,
         activeInjuries: injuries?.length || 0,
         streak,
-        achievedGoalsCount,
+        goalsAchievedCount,
         dynamicWeeklyGoal
       });
 
@@ -230,7 +230,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         completedWorkouts: weeklyWorkouts?.length || 0,
         activeInjuries: injuries?.length || 0,
         currentStreak: streak,
-        achievedGoalsCount
+        goalsAchievedThisWeek: goalsAchievedCount
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -266,8 +266,8 @@ const QuickStats = ({ className }: QuickStatsProps) => {
             <div>
               <p className="text-xs sm:text-sm font-medium text-blue-600">Weekly Goal</p>
               <p className="text-lg sm:text-2xl font-bold text-blue-900">{stats.completedWorkouts}/{stats.weeklyGoal}</p>
-              {stats.achievedGoalsCount > 0 && (
-                <p className="text-xs text-blue-500">+{Math.floor(stats.achievedGoalsCount / 2)} from goals</p>
+              {stats.goalsAchievedThisWeek > 0 && (
+                <p className="text-xs text-blue-500">+{Math.floor(stats.goalsAchievedThisWeek / 2)} from goals</p>
               )}
             </div>
             <div className="bg-blue-500 p-2 sm:p-3 rounded-full">
@@ -311,11 +311,12 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-medium text-purple-600">This Week</p>
-              <p className="text-lg sm:text-2xl font-bold text-purple-900">{stats.completedWorkouts}</p>
+              <p className="text-xs sm:text-sm font-medium text-purple-600">Goals This Week</p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-900">{stats.goalsAchievedThisWeek}</p>
+              <p className="text-xs text-purple-500">Achieved</p>
             </div>
             <div className="bg-purple-500 p-2 sm:p-3 rounded-full">
-              <Heart className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </CardContent>
