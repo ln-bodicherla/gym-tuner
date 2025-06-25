@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,58 +9,76 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   TrendingUp, 
   Activity, 
   Crown, 
+  Shield,
   BarChart3,
+  Calendar,
+  DollarSign,
   LogOut,
   Mail,
   User
 } from 'lucide-react';
 
-interface SimpleAnalytics {
-  totalUsers: number;
-  totalWorkouts: number;
-  totalGoals: number;
-  totalInjuries: number;
-  totalPlans: number;
+interface AdminAnalytics {
+  total_users: number;
+  users_last_30_days: number;
+  users_last_7_days: number;
+  users_today: number;
+  active_subscribers: number;
+  inactive_subscribers: number;
+  basic_subscribers: number;
+  premium_subscribers: number;
+  enterprise_subscribers: number;
+  total_sessions: number;
+  sessions_last_30_days: number;
+  total_page_views: number;
+  page_views_last_30_days: number;
+  total_workouts: number;
+  workouts_last_30_days: number;
+  total_workout_plans: number;
+  total_goals: number;
+  total_injuries: number;
 }
 
-interface UserWithSubscription {
+interface UserDetails {
   id: string;
-  full_name: string | null;
+  email: string;
   created_at: string;
-  subscription_status: 'free' | 'trial' | 'paid';
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+  full_name: string | null;
+  subscribed: boolean;
   subscription_tier: string | null;
-  trial_end: string | null;
   subscription_end: string | null;
+  trial_end: string | null;
+  total_workouts: number;
+  total_goals: number;
+  total_injuries: number;
 }
-
-const ADMIN_PASSWORD = 'GymTuner2025!Admin';
 
 const Admin = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, loading, adminInfo, login, logout, getAnalytics } = useAdminAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [analytics, setAnalytics] = useState<SimpleAnalytics | null>(null);
-  const [users, setUsers] = useState<UserWithSubscription[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [users, setUsers] = useState<UserDetails[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if already authenticated in session
-    const adminAuth = sessionStorage.getItem('admin_authenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
+    if (isAuthenticated && !analytics) {
       loadAnalytics();
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'users' && users.length === 0) {
@@ -71,29 +90,36 @@ const Admin = () => {
     e.preventDefault();
     setLoginLoading(true);
 
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('admin_authenticated', 'true');
+    try {
+      const result = await login(email, password);
+      
+      if (!result.success) {
+        toast({
+          title: "Authentication Failed",
+          description: result.error || "Invalid credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Welcome Administrator",
         description: "Successfully logged in to admin dashboard",
       });
-      loadAnalytics();
-    } else {
+    } catch (error) {
+      console.error('Login failed:', error);
       toast({
-        title: "Authentication Failed",
-        description: "Invalid password",
+        title: "Login Error",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
+    } finally {
+      setLoginLoading(false);
     }
-    
-    setLoginLoading(false);
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('admin_authenticated');
-    setPassword('');
+    logout();
     toast({
       title: "Logged Out",
       description: "Admin session ended",
@@ -101,49 +127,9 @@ const Admin = () => {
   };
 
   const loadAnalytics = async () => {
-    setAnalyticsLoading(true);
     try {
-      console.log('Loading analytics data...');
-      
-      // Get basic analytics using count queries
-      const [usersRes, workoutsRes, goalsRes, injuriesRes, plansRes] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('workouts').select('*', { count: 'exact', head: true }),
-        supabase.from('goals').select('*', { count: 'exact', head: true }),
-        supabase.from('injuries').select('*', { count: 'exact', head: true }),
-        supabase.from('workout_plans').select('*', { count: 'exact', head: true })
-      ]);
-
-      console.log('Analytics results:', {
-        users: usersRes.count,
-        workouts: workoutsRes.count,
-        goals: goalsRes.count,
-        injuries: injuriesRes.count,
-        plans: plansRes.count
-      });
-
-      // Check for errors
-      if (usersRes.error) console.error('Users query error:', usersRes.error);
-      if (workoutsRes.error) console.error('Workouts query error:', workoutsRes.error);
-      if (goalsRes.error) console.error('Goals query error:', goalsRes.error);
-      if (injuriesRes.error) console.error('Injuries query error:', injuriesRes.error);
-      if (plansRes.error) console.error('Plans query error:', plansRes.error);
-
-      setAnalytics({
-        totalUsers: usersRes.count || 0,
-        totalWorkouts: workoutsRes.count || 0,
-        totalGoals: goalsRes.count || 0,
-        totalInjuries: injuriesRes.count || 0,
-        totalPlans: plansRes.count || 0,
-      });
-
-      console.log('Analytics set:', {
-        totalUsers: usersRes.count || 0,
-        totalWorkouts: workoutsRes.count || 0,
-        totalGoals: goalsRes.count || 0,
-        totalInjuries: injuriesRes.count || 0,
-        totalPlans: plansRes.count || 0,
-      });
+      const data = await getAnalytics();
+      setAnalytics(data);
     } catch (error) {
       console.error('Failed to load analytics:', error);
       toast({
@@ -151,66 +137,21 @@ const Admin = () => {
         description: "Failed to load analytics data",
         variant: "destructive",
       });
-    } finally {
-      setAnalyticsLoading(false);
     }
   };
 
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      console.log('Loading users data...');
-      
-      // Get users from profiles table and join with subscription data
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, created_at');
-      
-      if (profilesError) {
-        console.error('Profiles error:', profilesError);
-        throw profilesError;
-      }
-      
-      console.log('Loaded profiles:', profilesData?.length || 0);
-      
-      // Get subscription data
-      const { data: subscriptionsData, error: subscriptionsError } = await supabase
-        .from('subscribers')
-        .select('user_id, subscribed, subscription_tier, trial_end, subscription_end');
-      
-      if (subscriptionsError) {
-        console.warn('Could not load subscription data:', subscriptionsError);
-      }
+      const token = localStorage.getItem('admin_token');
+      if (!token) throw new Error('No admin session');
 
-      console.log('Loaded subscriptions:', subscriptionsData?.length || 0);
-
-      // Combine profile and subscription data
-      const usersWithSubscriptions: UserWithSubscription[] = (profilesData || []).map(profile => {
-        const subscription = subscriptionsData?.find(sub => sub.user_id === profile.id);
-        
-        let subscriptionStatus: 'free' | 'trial' | 'paid' = 'free';
-        
-        if (subscription) {
-          if (subscription.subscribed) {
-            subscriptionStatus = 'paid';
-          } else if (subscription.trial_end && new Date(subscription.trial_end) > new Date()) {
-            subscriptionStatus = 'trial';
-          }
-        }
-
-        return {
-          id: profile.id,
-          full_name: profile.full_name,
-          created_at: profile.created_at,
-          subscription_status: subscriptionStatus,
-          subscription_tier: subscription?.subscription_tier || null,
-          trial_end: subscription?.trial_end || null,
-          subscription_end: subscription?.subscription_end || null,
-        };
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'get_users', session_token: token }
       });
 
-      console.log('Final users with subscriptions:', usersWithSubscriptions.length);
-      setUsers(usersWithSubscriptions);
+      if (error) throw error;
+      setUsers(data.users || []);
     } catch (error) {
       console.error('Failed to load users:', error);
       toast({
@@ -228,16 +169,71 @@ const Admin = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getSubscriptionBadge = (user: UserWithSubscription) => {
-    switch (user.subscription_status) {
-      case 'paid':
-        return <Badge className="bg-green-500 text-white">Paid {user.subscription_tier || ''}</Badge>;
-      case 'trial':
-        return <Badge className="bg-blue-500 text-white">Trial</Badge>;
-      default:
-        return <Badge variant="outline" className="border-gray-300 text-gray-600">Free</Badge>;
+  const getSubscriptionStatus = (user: UserDetails) => {
+    const now = new Date();
+    
+    // Check if user is currently in trial period (regardless of subscription status)
+    if (user.trial_end && new Date(user.trial_end) > now) {
+      const trialDaysLeft = Math.ceil((new Date(user.trial_end).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            Free Trial
+          </Badge>
+          <span className="text-xs text-gray-500">
+            {trialDaysLeft} days left
+          </span>
+        </div>
+      );
     }
+    
+    // Check if user has an active PAID subscription (not in trial)
+    if (user.subscribed && user.subscription_end && new Date(user.subscription_end) > now) {
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="default" className="bg-green-500">
+            Paid - {user.subscription_tier || 'Active'}
+          </Badge>
+          <span className="text-xs text-gray-500">
+            Until {formatDate(user.subscription_end)}
+          </span>
+        </div>
+      );
+    }
+    
+    // Check if user had a subscription but it expired
+    if (user.subscribed === false && (user.subscription_end || user.trial_end)) {
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="outline" className="border-orange-300 text-orange-600">
+            Expired
+          </Badge>
+          <span className="text-xs text-gray-500">
+            {user.subscription_end ? `Ended ${formatDate(user.subscription_end)}` : 
+             user.trial_end ? `Trial ended ${formatDate(user.trial_end)}` : ''}
+          </span>
+        </div>
+      );
+    }
+    
+    // User never had any subscription
+    return (
+      <Badge variant="outline" className="border-gray-300 text-gray-600">
+        Free User
+      </Badge>
+    );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -253,11 +249,22 @@ const Admin = () => {
             </div>
             <CardTitle className="text-2xl">Admin Access</CardTitle>
             <CardDescription>
-              Enter admin password to continue
+              Restricted access - Authorized personnel only
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@gymtuner.com"
+                  required
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -265,7 +272,6 @@ const Admin = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
                   required
                 />
               </div>
@@ -297,9 +303,11 @@ const Admin = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                Welcome, Administrator
-              </div>
+              {adminInfo && (
+                <div className="text-sm text-gray-600">
+                  Welcome, {adminInfo.full_name}
+                </div>
+              )}
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/dashboard')}
@@ -322,101 +330,109 @@ const Admin = () => {
 
       <div className="px-6 py-8 max-w-7xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {analyticsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2">Loading analytics...</span>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Registered users
-                    </p>
-                  </CardContent>
-                </Card>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.total_users || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    +{analytics?.users_last_7_days || 0} this week
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.totalWorkouts || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Logged workouts
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Subscribers</CardTitle>
+                  <Crown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.active_subscribers || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {analytics?.inactive_subscribers || 0} inactive
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Goals</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.totalGoals || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Set goals
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.total_sessions || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {analytics?.sessions_last_30_days || 0} last 30 days
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Workout Plans</CardTitle>
-                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics?.totalPlans || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Created plans
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.total_workouts || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {analytics?.workouts_last_30_days || 0} this month
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>System Overview</CardTitle>
-                <CardDescription>
-                  Basic application statistics and metrics
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">User Activity</h4>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <div>Users: {analytics?.totalUsers || 0}</div>
-                      <div>Workouts: {analytics?.totalWorkouts || 0}</div>
-                      <div>Goals: {analytics?.totalGoals || 0}</div>
-                    </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Growth</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Today</span>
+                    <Badge variant="secondary">{analytics?.users_today || 0}</Badge>
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="font-medium">System Health</h4>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <div>Injuries tracked: {analytics?.totalInjuries || 0}</div>
-                      <div>Plans created: {analytics?.totalPlans || 0}</div>
-                      <div>Status: ✅ Operational</div>
-                    </div>
+                  <div className="flex justify-between">
+                    <span>Last 7 days</span>
+                    <Badge variant="secondary">{analytics?.users_last_7_days || 0}</Badge>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex justify-between">
+                    <span>Last 30 days</span>
+                    <Badge variant="secondary">{analytics?.users_last_30_days || 0}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>App Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Workout Plans</span>
+                    <Badge variant="outline">{analytics?.total_workout_plans || 0}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Goals Set</span>
+                    <Badge variant="outline">{analytics?.total_goals || 0}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Injuries Tracked</span>
+                    <Badge variant="outline">{analytics?.total_injuries || 0}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
@@ -427,7 +443,7 @@ const Admin = () => {
                   All Users ({users.length})
                 </CardTitle>
                 <CardDescription>
-                  Complete list of registered users with subscription status
+                  Complete list of registered users with subscription and activity details
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -442,9 +458,11 @@ const Admin = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>User</TableHead>
+                          <TableHead>Email Status</TableHead>
                           <TableHead>Subscription</TableHead>
                           <TableHead>Joined</TableHead>
-                          <TableHead>Details</TableHead>
+                          <TableHead>Last Login</TableHead>
+                          <TableHead>Activity</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -457,28 +475,51 @@ const Admin = () => {
                                   <div className="font-medium">
                                     {user.full_name || 'Unknown'}
                                   </div>
-                                  <div className="text-sm text-gray-500">
-                                    ID: {user.id.slice(0, 8)}...
+                                  <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                    <Mail className="h-3 w-3" />
+                                    <span>{user.email}</span>
                                   </div>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
-                              {getSubscriptionBadge(user)}
+                              {user.email_confirmed_at ? (
+                                <Badge variant="default" className="bg-green-500">
+                                  Verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-red-300 text-red-600">
+                                  Unverified
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {getSubscriptionStatus(user)}
                             </TableCell>
                             <TableCell className="text-sm text-gray-600">
                               {formatDate(user.created_at)}
                             </TableCell>
                             <TableCell className="text-sm text-gray-600">
-                              {user.subscription_status === 'trial' && user.trial_end && (
-                                <div>Trial ends: {formatDate(user.trial_end)}</div>
-                              )}
-                              {user.subscription_status === 'paid' && user.subscription_end && (
-                                <div>Renews: {formatDate(user.subscription_end)}</div>
-                              )}
-                              {user.subscription_status === 'free' && (
-                                <div>Free account</div>
-                              )}
+                              {formatDate(user.last_sign_in_at)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm space-y-1">
+                                <div className="flex items-center gap-1">
+                                  <Activity className="h-3 w-3 text-gray-400" />
+                                  <span>{user.total_workouts} workouts</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <TrendingUp className="h-3 w-3 text-gray-400" />
+                                  <span>{user.total_goals} goals</span>
+                                </div>
+                                {user.total_injuries > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <Badge variant="outline" className="h-4 px-1 text-xs">
+                                      {user.total_injuries} injuries
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -491,6 +532,62 @@ const Admin = () => {
                     )}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="subscriptions" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Overview</CardTitle>
+                <CardDescription>
+                  Premium subscription analytics and revenue insights
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{analytics?.active_subscribers || 0}</div>
+                    <div className="text-sm text-gray-600">Active Subscribers</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-600">{analytics?.inactive_subscribers || 0}</div>
+                    <div className="text-sm text-gray-600">Inactive</div>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{analytics?.basic_subscribers || 0}</div>
+                    <div className="text-sm text-gray-600">Basic Plan</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Usage Analytics</CardTitle>
+                <CardDescription>
+                  Detailed app usage and engagement metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Page Views</h4>
+                    <div className="text-3xl font-bold">{analytics?.total_page_views || 0}</div>
+                    <p className="text-sm text-gray-600">
+                      {analytics?.page_views_last_30_days || 0} in the last 30 days
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Sessions</h4>
+                    <div className="text-3xl font-bold">{analytics?.total_sessions || 0}</div>
+                    <p className="text-sm text-gray-600">
+                      {analytics?.sessions_last_30_days || 0} in the last 30 days
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
