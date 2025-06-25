@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle } from "lucide-react";
+import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle, Target, Activity, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
+import { PRO_FEATURES_WITH_ICONS } from "@/config/subscriptionFeatures";
 
 const SubscriptionManager = () => {
   const [loading, setLoading] = useState(false);
@@ -181,11 +182,13 @@ const SubscriptionManager = () => {
   };
 
   const proFeatures = [
-    { icon: Zap, text: "Unlimited AI-generated workouts" },
+    { icon: Activity, text: "Unlimited AI-generated workout plans" },
     { icon: TrendingUp, text: "Advanced progress analytics" },
-    { icon: Star, text: "Personalized nutrition guidance" },
-    { icon: Calendar, text: "Custom workout scheduling" },
+    { icon: Target, text: "Personalized goal tracking" },
     { icon: Crown, text: "Priority support" },
+    { icon: BarChart3, text: "Advanced workout analytics" },
+    { icon: Star, text: "Personalized injury management" },
+    { icon: Zap, text: "Unlimited AI-powered suggestions" },
   ];
 
   return (

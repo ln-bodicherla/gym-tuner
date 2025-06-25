@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Crown, Check, Lock } from "lucide-react";
+import { PRO_FEATURES } from "@/config/subscriptionFeatures";
 
 interface SubscriptionCardProps {
   hasAccess: boolean;
@@ -53,26 +54,12 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm">Unlimited AI-generated workout plans</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm">AI-powered insights & analytics</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm">Advanced workout tracking</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm">Personalized injury management</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-sm">Priority customer support</span>
-          </div>
+          {PRO_FEATURES.map((feature, index) => (
+            <div key={index} className="flex items-center space-x-3">
+              <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="text-sm">{feature}</span>
+            </div>
+          ))}
         </div>
         
         <Button 
