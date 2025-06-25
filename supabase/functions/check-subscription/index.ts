@@ -8,7 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for enhanced debugging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -19,7 +18,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Use the service role key to perform writes (upsert) in Supabase
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -70,10 +68,9 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Only check for active subscriptions (no trial)
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
+      status: "all",
       limit: 10,
     });
     
@@ -82,55 +79,76 @@ serve(async (req) => {
       statuses: subscriptions.data.map(s => ({ id: s.id, status: s.status }))
     });
 
-    // Find only active subscriptions
-    const activeSubscription = subscriptions.data.find(sub => 
-      sub.status === "active"
-    );
-
-    const hasActiveSub = !!activeSubscription;
+    let hasAccess = false;
     let subscriptionTier = null;
     let subscriptionEnd = null;
+    let trialEnd = null;
 
-    if (hasActiveSub && activeSubscription) {
-      subscriptionEnd = new Date(activeSubscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { 
-        subscriptionId: activeSubscription.id, 
-        status: activeSubscription.status,
-        endDate: subscriptionEnd
-      });
-      
-      // Determine subscription tier from price
-      const priceId = activeSubscription.items.data[0].price.id;
-      const price = await stripe.prices.retrieve(priceId);
-      const amount = price.unit_amount || 0;
-      if (amount <= 999) {
-        subscriptionTier = "Basic";
-      } else if (amount <= 1999) {
-        subscriptionTier = "Premium";
-      } else {
-        subscriptionTier = "Enterprise";
+    // Check for active subscriptions or trials
+    for (const subscription of subscriptions.data) {
+      if (subscription.status === "active" || subscription.status === "trialing") {
+        hasAccess = true;
+        subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        
+        // Check if currently in trial
+        if (subscription.trial_end && subscription.trial_end > Math.floor(Date.now() / 1000)) {
+          trialEnd = new Date(subscription.trial_end * 1000).toISOString();
+          logStep("Active trial found", { 
+            subscriptionId: subscription.id, 
+            status: subscription.status,
+            trialEnd: trialEnd,
+            subscriptionEnd: subscriptionEnd
+          });
+        } else {
+          logStep("Active subscription found", { 
+            subscriptionId: subscription.id, 
+            status: subscription.status,
+            endDate: subscriptionEnd 
+          });
+        }
+
+        // Determine subscription tier from price
+        const priceId = subscription.items.data[0].price.id;
+        const price = await stripe.prices.retrieve(priceId);
+        const amount = price.unit_amount || 0;
+        if (amount <= 999) {
+          subscriptionTier = "Basic";
+        } else if (amount <= 1999) {
+          subscriptionTier = "Premium";
+        } else {
+          subscriptionTier = "Enterprise";
+        }
+        logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
+        break; // Use the first active/trialing subscription
       }
-      logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
-    } else {
-      logStep("No active subscription found");
+    }
+
+    if (!hasAccess) {
+      logStep("No active subscription or trial found");
     }
 
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
       user_id: user.id,
       stripe_customer_id: customerId,
-      subscribed: hasActiveSub,
+      subscribed: hasAccess,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      trial_end: null, // No trial period
+      trial_end: trialEnd,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
-    logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier });
+    logStep("Updated database with subscription info", { 
+      subscribed: hasAccess, 
+      subscriptionTier,
+      trialEnd: trialEnd ? "Yes" : "No"
+    });
+    
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
+      subscribed: hasAccess,
       subscription_tier: subscriptionTier,
-      subscription_end: subscriptionEnd
+      subscription_end: subscriptionEnd,
+      trial_end: trialEnd
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

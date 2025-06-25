@@ -53,7 +53,7 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    logStep("Creating checkout session", { origin });
+    logStep("Creating checkout session with 30-day trial", { origin });
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -74,7 +74,7 @@ serve(async (req) => {
       ],
       mode: "subscription",
       subscription_data: {
-        // No trial period - direct purchase
+        trial_period_days: 30, // 30-day free trial
         metadata: {
           user_id: user.id,
           user_email: user.email,
@@ -90,7 +90,7 @@ serve(async (req) => {
       },
     });
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created with trial", { sessionId: session.id, url: session.url, trialDays: 30 });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

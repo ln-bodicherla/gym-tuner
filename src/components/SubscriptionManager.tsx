@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle, Target, Activity, BarChart3 } from "lucide-react";
+import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle, Target, Activity, BarChart3, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ const SubscriptionManager = () => {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
-  const { subscriptionInfo, checkSubscriptionStatus } = useSubscription();
+  const { subscriptionInfo, checkSubscriptionStatus, isInTrial, getTrialDaysRemaining } = useSubscription();
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -188,6 +188,9 @@ const SubscriptionManager = () => {
     };
   });
 
+  const trialDaysRemaining = getTrialDaysRemaining();
+  const inTrial = isInTrial();
+
   return (
     <div className="space-y-6">
       {/* Current Subscription Status */}
@@ -204,15 +207,25 @@ const SubscriptionManager = () => {
                 </CardTitle>
                 <CardDescription>
                   {subscriptionInfo?.subscribed 
-                    ? 'You have full access to all premium features' 
-                    : 'Upgrade to unlock unlimited workouts and premium features'
+                    ? inTrial 
+                      ? `${trialDaysRemaining} days left in your free trial`
+                      : 'You have full access to all premium features' 
+                    : 'Start your 30-day free trial to unlock all features'
                   }
                 </CardDescription>
               </div>
             </div>
-            <Badge variant={subscriptionInfo?.subscribed ? "default" : "secondary"} className={subscriptionInfo?.subscribed ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-white" : ""}>
-              {subscriptionInfo?.subscribed ? 'Pro' : 'Free'}
-            </Badge>
+            <div className="flex items-center space-x-2">
+              {inTrial && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Trial
+                </Badge>
+              )}
+              <Badge variant={subscriptionInfo?.subscribed ? "default" : "secondary"} className={subscriptionInfo?.subscribed && !inTrial ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-white" : ""}>
+                {subscriptionInfo?.subscribed ? (inTrial ? 'Trial' : 'Pro') : 'Free'}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -221,15 +234,21 @@ const SubscriptionManager = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-600">Status</p>
-                  <p className="font-medium text-green-600">Active</p>
+                  <p className="font-medium text-green-600">
+                    {inTrial ? `Trial (${trialDaysRemaining} days left)` : 'Active'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-600">Plan</p>
-                  <p className="font-medium">Monthly Pro ($9.99/month)</p>
+                  <p className="font-medium">
+                    {inTrial ? '30-Day Free Trial' : 'Monthly Pro ($9.99/month)'}
+                  </p>
                 </div>
                 {subscriptionInfo.subscription_end && (
                   <div className="sm:col-span-2">
-                    <p className="text-gray-600">Next billing date</p>
+                    <p className="text-gray-600">
+                      {inTrial ? 'Trial ends / First billing date' : 'Next billing date'}
+                    </p>
                     <p className="font-medium">{new Date(subscriptionInfo.subscription_end).toLocaleDateString()}</p>
                   </div>
                 )}
@@ -260,7 +279,7 @@ const SubscriptionManager = () => {
                       </DialogTitle>
                       <DialogDescription>
                         Are you sure you want to cancel your Gym Tuner Pro subscription? 
-                        You'll continue to have access to all features until the end of your current billing period.
+                        You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-end space-x-2 mt-4">
@@ -286,7 +305,7 @@ const SubscriptionManager = () => {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                You're currently on the free plan. Upgrade to Pro for unlimited access to all features.
+                Start your 30-day free trial today. No payment required upfront - we'll only charge after your trial ends.
               </p>
               <Button 
                 onClick={handleSubscribe}
@@ -294,7 +313,7 @@ const SubscriptionManager = () => {
                 className="w-full sm:w-auto bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
               >
                 <Crown className="h-4 w-4 mr-2" />
-                {loading ? "Processing..." : "Upgrade to Pro"}
+                {loading ? "Processing..." : "Start Free Trial"}
               </Button>
             </div>
           )}
@@ -339,13 +358,13 @@ const SubscriptionManager = () => {
             </div>
             <CardTitle className="text-2xl">Gym Tuner Pro</CardTitle>
             <CardDescription>
-              The complete fitness companion
+              Start with a 30-day free trial
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-6">
             <div>
-              <div className="text-4xl font-bold">$9.99</div>
-              <div className="text-sm text-gray-600">per month</div>
+              <div className="text-lg font-semibold text-green-600 mb-2">30 Days Free</div>
+              <div className="text-sm text-gray-600 mb-4">Then $9.99/month</div>
             </div>
             <Button 
               onClick={handleSubscribe}
@@ -354,14 +373,14 @@ const SubscriptionManager = () => {
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
             >
               <Crown className="h-5 w-5 mr-2" />
-              {loading ? "Processing..." : "Subscribe Now"}
+              {loading ? "Processing..." : "Start Free Trial"}
             </Button>
             <div className="text-center space-y-2">
               <p className="text-xs text-gray-500">
-                Cancel anytime. No commitments.
+                No payment required today. Cancel anytime during trial.
               </p>
               <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                💰 Full refund within 7 days after purchase
+                💰 Full refund within 7 days after first charge
               </p>
             </div>
           </CardContent>

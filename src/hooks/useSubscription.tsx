@@ -7,6 +7,7 @@ interface SubscriptionInfo {
   subscribed: boolean;
   subscription_tier?: string;
   subscription_end?: string;
+  trial_end?: string;
 }
 
 export const useSubscription = () => {
@@ -58,7 +59,7 @@ export const useSubscription = () => {
         // Fallback to checking local database
         const { data: localData } = await supabase
           .from('subscribers')
-          .select('subscribed, subscription_tier, subscription_end')
+          .select('subscribed, subscription_tier, subscription_end, trial_end')
           .eq('user_id', user.id)
           .single();
         
@@ -85,11 +86,27 @@ export const useSubscription = () => {
     return subscriptionInfo?.subscribed || false;
   };
 
+  const isInTrial = () => {
+    if (!subscriptionInfo?.trial_end) return false;
+    return new Date(subscriptionInfo.trial_end) > new Date();
+  };
+
+  const getTrialDaysRemaining = () => {
+    if (!subscriptionInfo?.trial_end) return 0;
+    const trialEndDate = new Date(subscriptionInfo.trial_end);
+    const now = new Date();
+    const diffTime = trialEndDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
   return {
     subscriptionInfo,
     loading,
     initialCheckComplete,
     checkSubscriptionStatus,
     hasAccess,
+    isInTrial,
+    getTrialDaysRemaining,
   };
 };

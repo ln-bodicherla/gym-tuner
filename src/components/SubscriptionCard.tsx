@@ -2,35 +2,61 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Crown, Check, Lock } from "lucide-react";
+import { Crown, Check, Lock, Clock } from "lucide-react";
 import { PRO_FEATURES } from "@/config/subscriptionFeatures";
 
 interface SubscriptionCardProps {
   hasAccess: boolean;
   onUpgrade: () => void;
   compact?: boolean;
+  isInTrial?: boolean;
+  trialDaysRemaining?: number;
 }
 
-const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: SubscriptionCardProps) => {
+const SubscriptionCard = ({ 
+  hasAccess, 
+  onUpgrade, 
+  compact = false, 
+  isInTrial = false, 
+  trialDaysRemaining = 0 
+}: SubscriptionCardProps) => {
   if (hasAccess && compact) {
     return (
       <div className="flex items-center space-x-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-        <Crown className="h-4 w-4 text-green-600" />
-        <span className="font-medium">Pro Active</span>
+        {isInTrial ? (
+          <>
+            <Clock className="h-4 w-4 text-blue-600" />
+            <span className="font-medium">Trial ({trialDaysRemaining} days left)</span>
+          </>
+        ) : (
+          <>
+            <Crown className="h-4 w-4 text-green-600" />
+            <span className="font-medium">Pro Active</span>
+          </>
+        )}
       </div>
     );
   }
 
   if (hasAccess) {
     return (
-      <Card className="border-green-200 bg-green-50">
+      <Card className={isInTrial ? "border-blue-200 bg-blue-50" : "border-green-200 bg-green-50"}>
         <CardHeader className="pb-4">
           <div className="flex items-center space-x-2">
-            <Crown className="h-5 w-5 text-green-600" />
-            <CardTitle className="text-green-800">Pro Active</CardTitle>
+            {isInTrial ? (
+              <Clock className="h-5 w-5 text-blue-600" />
+            ) : (
+              <Crown className="h-5 w-5 text-green-600" />
+            )}
+            <CardTitle className={isInTrial ? "text-blue-800" : "text-green-800"}>
+              {isInTrial ? `Trial Active (${trialDaysRemaining} days left)` : 'Pro Active'}
+            </CardTitle>
           </div>
-          <CardDescription className="text-green-600">
-            You have access to all premium features
+          <CardDescription className={isInTrial ? "text-blue-600" : "text-green-600"}>
+            {isInTrial 
+              ? `Enjoying your free trial with ${trialDaysRemaining} days remaining`
+              : 'You have access to all premium features'
+            }
           </CardDescription>
         </CardHeader>
       </Card>
@@ -45,11 +71,11 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
         </div>
         <CardTitle className="text-xl">Gym Tuner Pro</CardTitle>
         <CardDescription>
-          Start immediately with $9.99/month
+          Start with a 30-day free trial
         </CardDescription>
         <div className="text-center space-y-1">
-          <div className="text-3xl font-bold text-gray-900">$9.99</div>
-          <div className="text-gray-600">/month</div>
+          <div className="text-2xl font-bold text-green-600">Free for 30 Days</div>
+          <div className="text-gray-600">Then $9.99/month</div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -67,16 +93,16 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
           className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
           size={compact ? "sm" : "lg"}
         >
-          <Crown className="h-4 w-4 mr-2" />
-          Subscribe Now
+          <Clock className="h-4 w-4 mr-2" />
+          Start Free Trial
         </Button>
         
         <div className="text-center space-y-2">
           <p className="text-xs text-gray-500">
-            Cancel anytime
+            No payment required today
           </p>
           <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-            💰 Full refund within 7 days after purchase
+            💰 Cancel anytime during trial
           </p>
         </div>
       </CardContent>
