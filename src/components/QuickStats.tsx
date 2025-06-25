@@ -1,10 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertTriangle, Trophy, User, Weight } from "lucide-react";
+import { AlertTriangle, Trophy, User, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { getCurrentDatePST, getStartOfWeekPST } from "@/utils/timezoneHelpers";
+import { calculateWorkoutStreak } from "@/utils/streakHelpers";
 
 interface QuickStatsProps {
   className?: string;
@@ -15,13 +17,15 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   const { lastUpdate } = useRealtimeDashboard();
   const [stats, setStats] = useState({
     activeInjuries: 0,
-    goalsAchievedThisWeek: 0
+    goalsAchievedThisWeek: 0,
+    workoutStreak: 0
   });
   const [profile, setProfile] = useState({
     age: null,
     weight: null,
     height: null,
     fitness_level: null,
+    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
   });
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +43,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       console.log('Loading profile for user:', user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('age, weight, height, fitness_level')
+        .select('age, weight, height, fitness_level, workout_schedule')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -50,7 +54,10 @@ const QuickStats = ({ className }: QuickStatsProps) => {
 
       if (profileData) {
         console.log('Profile loaded successfully:', profileData);
-        setProfile(profileData);
+        setProfile({
+          ...profileData,
+          workout_schedule: profileData.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        });
       } else {
         console.log('No profile found for user');
       }
@@ -99,14 +106,45 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Goals achieved this week loaded:', goalsAchievedThisWeek?.length || 0);
       }
 
+      // Get workouts for streak calculation (last 30 days should be enough)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoPST = thirtyDaysAgo.toISOString().split('T')[0];
+
+      const { data: workouts, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('workout_date')
+        .eq('user_id', user.id)
+        .gte('workout_date', thirtyDaysAgoPST)
+        .order('workout_date', { ascending: false });
+
+      let workoutStreak = 0;
+      if (workoutsError) {
+        console.error('Error loading workouts for streak:', workoutsError);
+      } else {
+        console.log('Workouts for streak loaded:', workouts?.length || 0);
+        // Wait for profile to be loaded before calculating streak
+        const profileData = await supabase
+          .from('profiles')
+          .select('workout_schedule')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        const workoutSchedule = profileData.data?.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        workoutStreak = calculateWorkoutStreak(workouts || [], workoutSchedule);
+        console.log('Calculated workout streak:', workoutStreak);
+      }
+
       console.log('Stats calculated:', {
         activeInjuries: injuries?.length || 0,
         goalsAchievedCount: goalsAchievedThisWeek?.length || 0,
+        workoutStreak
       });
 
       setStats({
         activeInjuries: injuries?.length || 0,
         goalsAchievedThisWeek: goalsAchievedThisWeek?.length || 0,
+        workoutStreak
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -165,6 +203,21 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         </CardContent>
       </Card>
 
+      <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-red-600">Workout Streak</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-900">{stats.workoutStreak}</p>
+              <p className="text-xs text-red-500">Days</p>
+            </div>
+            <div className="bg-red-500 p-2 sm:p-3 rounded-full">
+              <Flame className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
@@ -179,25 +232,6 @@ const QuickStats = ({ className }: QuickStatsProps) => {
             </div>
             <div className="bg-pink-500 p-2 sm:p-3 rounded-full">
               <User className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-yellow-600">Weight & Height</p>
-              <p className="text-lg sm:text-2xl font-bold text-yellow-900">
-                {profile.weight ? `${profile.weight}kg` : 'N/A'}
-                <span className="text-sm block">
-                  {profile.height || 'Height not set'}
-                </span>
-              </p>
-            </div>
-            <div className="bg-yellow-500 p-2 sm:p-3 rounded-full">
-              <Weight className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
             </div>
           </div>
         </CardContent>

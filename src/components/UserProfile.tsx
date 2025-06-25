@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { User, Mail, Phone, MapPin, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { getWorkoutDayOptions } from "@/utils/streakHelpers";
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -36,7 +37,8 @@ const UserProfile = () => {
     availability: "",
     preferences: "",
     limitations: "",
-    preferred_time: ""
+    preferred_time: "",
+    workout_schedule: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
   });
 
   useEffect(() => {
@@ -92,7 +94,8 @@ const UserProfile = () => {
           availability: profileData.availability || "",
           preferences: profileData.preferences || "",
           limitations: profileData.limitations || "",
-          preferred_time: profileData.preferred_time?.toString() || ""
+          preferred_time: profileData.preferred_time?.toString() || "",
+          workout_schedule: profileData.workout_schedule || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
         }));
       } else {
         console.log('No profile data found, will create new profile on save');
@@ -100,6 +103,19 @@ const UserProfile = () => {
     } catch (error) {
       console.error('Error loading profile:', error);
     }
+  };
+
+  const handleWorkoutScheduleChange = (day: string, checked: boolean) => {
+    setProfile(prev => {
+      const newSchedule = checked 
+        ? [...prev.workout_schedule, day]
+        : prev.workout_schedule.filter(d => d !== day);
+      
+      return {
+        ...prev,
+        workout_schedule: newSchedule
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -131,6 +147,16 @@ const UserProfile = () => {
       return;
     }
 
+    // Validate workout schedule
+    if (profile.workout_schedule.length === 0) {
+      toast({
+        title: "Invalid Workout Schedule",
+        description: "Please select at least one workout day.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       console.log('Saving profile for user:', user.id);
       console.log('Profile data to save:', profile);
@@ -153,6 +179,7 @@ const UserProfile = () => {
         preferences: profile.preferences.trim() || null,
         limitations: profile.limitations.trim() || null,
         preferred_time: profile.preferred_time ? parseInt(profile.preferred_time) : null,
+        workout_schedule: profile.workout_schedule,
         updated_at: new Date().toISOString()
       };
 
@@ -207,6 +234,8 @@ const UserProfile = () => {
       .join('')
       .toUpperCase();
   };
+
+  const workoutDayOptions = getWorkoutDayOptions();
 
   return (
     <div className="space-y-6">
@@ -409,6 +438,41 @@ const UserProfile = () => {
                 />
               ) : (
                 <p className="text-sm text-gray-600">{profile.preferred_time ? `${profile.preferred_time}:00` : 'Not set'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Workout Schedule */}
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-medium">Workout Schedule</Label>
+              <p className="text-sm text-gray-600 mb-3">Select the days you plan to workout (used for streak calculation)</p>
+              {isEditing ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {workoutDayOptions.map((day) => (
+                    <div key={day.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={day.value}
+                        checked={profile.workout_schedule.includes(day.value)}
+                        onCheckedChange={(checked) => handleWorkoutScheduleChange(day.value, checked)}
+                      />
+                      <Label htmlFor={day.value} className="text-sm font-normal">
+                        {day.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {profile.workout_schedule.map((day) => (
+                    <span key={day} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm capitalize">
+                      {day}
+                    </span>
+                  ))}
+                  {profile.workout_schedule.length === 0 && (
+                    <p className="text-sm text-gray-600">No workout days selected</p>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -19,6 +19,7 @@ interface ProfileData {
   availability?: string;
   limitations?: string;
   preferences?: string;
+  workout_schedule?: string[];
 }
 
 interface ProfileCompletionCheckProps {
@@ -40,7 +41,8 @@ const ProfileCompletionCheck: React.FC<ProfileCompletionCheckProps> = ({
       { key: 'age', label: 'Age', icon: User },
       { key: 'fitness_level', label: 'Fitness Level', icon: Dumbbell },
       { key: 'max_workout_time', label: 'Max Workout Time', icon: Clock },
-      { key: 'weekly_goal', label: 'Weekly Goal', icon: Target }
+      { key: 'weekly_goal', label: 'Weekly Goal', icon: Target },
+      { key: 'workout_schedule', label: 'Workout Schedule', icon: Target }
     ];
 
     const missingFields: string[] = [];
@@ -48,7 +50,14 @@ const ProfileCompletionCheck: React.FC<ProfileCompletionCheckProps> = ({
 
     requiredFields.forEach(field => {
       const value = profile[field.key as keyof ProfileData];
-      if (!value || (typeof value === 'string' && value.trim() === '')) {
+      if (field.key === 'workout_schedule') {
+        // Special handling for workout_schedule array
+        if (Array.isArray(value) && value.length > 0) {
+          filledFields++;
+        } else {
+          missingFields.push(field.label);
+        }
+      } else if (!value || (typeof value === 'string' && value.trim() === '')) {
         missingFields.push(field.label);
       } else {
         filledFields++;

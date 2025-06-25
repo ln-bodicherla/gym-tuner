@@ -20,6 +20,7 @@ interface UserProfile {
   preferences: string | null;
   limitations: string | null;
   preferred_time: number | null;
+  workout_schedule: string[] | null;
 }
 
 export const useUserProfile = () => {
