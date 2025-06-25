@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, Trophy, User, Weight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
-import { toZonedTime, format } from 'date-fns-tz';
+import { getCurrentDatePST, getStartOfWeekPST } from "@/utils/timezoneHelpers";
 
 interface QuickStatsProps {
   className?: string;
@@ -25,26 +24,6 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     fitness_level: null,
   });
   const [loading, setLoading] = useState(true);
-
-  // PST timezone constant
-  const PST_TIMEZONE = 'America/Los_Angeles';
-
-  // Helper function to get current date in PST
-  const getCurrentDatePST = () => {
-    const now = new Date();
-    const pstDate = toZonedTime(now, PST_TIMEZONE);
-    return format(pstDate, 'yyyy-MM-dd');
-  };
-
-  // Helper function to get start of week in PST
-  const getStartOfWeekPST = () => {
-    const now = new Date();
-    const pstDate = toZonedTime(now, PST_TIMEZONE);
-    const startOfWeek = new Date(pstDate);
-    startOfWeek.setDate(pstDate.getDate() - pstDate.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    return format(startOfWeek, 'yyyy-MM-dd');
-  };
 
   useEffect(() => {
     if (user) {
@@ -86,7 +65,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     try {
       console.log('Loading stats for user:', user.id);
       
-      // Get start of week in PST
+      // Get start of week and current date in PST using centralized helpers
       const startOfWeekPST = getStartOfWeekPST();
       const currentDatePST = getCurrentDatePST();
       console.log('Start of week PST:', startOfWeekPST);

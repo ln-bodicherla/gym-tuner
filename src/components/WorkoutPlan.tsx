@@ -18,6 +18,7 @@ import LockedFeature from "./LockedFeature";
 import ProfileCompletionCheck from "./ProfileCompletionCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useForm } from "react-hook-form";
+import { getCurrentDatePST, formatPSTDate } from "@/utils/timezoneHelpers";
 
 interface Exercise {
   name: string;
@@ -204,9 +205,9 @@ const WorkoutPlan = () => {
   };
 
   const checkExistingPlanForToday = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const todayPST = getCurrentDatePST();
     return workoutPlans.some(plan => 
-      plan.scheduled_date === today && plan.status === 'scheduled'
+      plan.scheduled_date === todayPST && plan.status === 'scheduled'
     );
   };
 
@@ -313,7 +314,7 @@ const WorkoutPlan = () => {
       const workoutPlan = {
         ...data.workoutPlan,
         status: 'scheduled' as const,
-        scheduled_date: new Date().toISOString().split('T')[0],
+        scheduled_date: getCurrentDatePST(), // Use PST date
       };
       
       const newPlan = await saveWorkoutPlan(workoutPlan);
@@ -553,9 +554,10 @@ const WorkoutPlan = () => {
     if (!currentWorkout) return;
 
     try {
+      const todayPST = getCurrentDatePST(); // Use PST date for completion
       const updatedPlan = await updateWorkoutPlan(currentWorkout.id, {
         status: 'completed',
-        completed_date: new Date().toISOString().split('T')[0]
+        completed_date: todayPST
       });
 
       if (updatedPlan) {
@@ -995,7 +997,7 @@ const WorkoutPlan = () => {
                           {plan.name}
                         </CardTitle>
                         <CardDescription className="text-green-600">
-                          Completed on {new Date(plan.completed_date!).toLocaleDateString()}
+                          Completed on {plan.completed_date ? formatPSTDate(new Date(plan.completed_date + 'T00:00:00'), 'MM/dd/yyyy') : 'Unknown date'}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-2">
