@@ -36,77 +36,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_sessions: {
-        Row: {
-          admin_id: string
-          created_at: string
-          expires_at: string
-          id: string
-          ip_address: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          admin_id: string
-          created_at?: string
-          expires_at: string
-          id?: string
-          ip_address?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          admin_id?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_sessions_admin_id_fkey"
-            columns: ["admin_id"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_users: {
-        Row: {
-          created_at: string
-          email: string
-          full_name: string
-          id: string
-          is_active: boolean
-          last_login: string | null
-          password_hash: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          full_name: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          full_name?: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       analytics_events: {
         Row: {
           browser: string | null
@@ -546,14 +475,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      verify_admin_password: {
-        Args: { input_email: string; input_password: string }
-        Returns: boolean
-      }
-      verify_password: {
-        Args: { password: string; hash: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
