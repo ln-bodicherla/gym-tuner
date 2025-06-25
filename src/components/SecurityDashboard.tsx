@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,16 +43,22 @@ const SecurityDashboard = () => {
 
       if (eventsError) throw eventsError;
 
-      setAuditEvents(events || []);
+      // Transform the data to match our interface, handling the ip_address type properly
+      const transformedEvents: SecurityAuditEvent[] = (events || []).map(event => ({
+        ...event,
+        ip_address: event.ip_address ? String(event.ip_address) : undefined
+      }));
+
+      setAuditEvents(transformedEvents);
 
       // Calculate stats
-      const totalEvents = events?.length || 0;
-      const failedAttempts = events?.filter(e => !e.success).length || 0;
-      const uniqueUsers = new Set(events?.map(e => e.user_id)).size;
-      const recentLogins = events?.filter(e => 
+      const totalEvents = transformedEvents.length;
+      const failedAttempts = transformedEvents.filter(e => !e.success).length;
+      const uniqueUsers = new Set(transformedEvents.map(e => e.user_id)).size;
+      const recentLogins = transformedEvents.filter(e => 
         e.action === 'user_login' && 
         new Date(e.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-      ).length || 0;
+      ).length;
 
       setStats({
         totalEvents,

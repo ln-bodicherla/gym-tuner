@@ -16,10 +16,14 @@ import ProfileCompletionCheck from '@/components/ProfileCompletionCheck';
 import { useAuthAuditLogger } from '@/components/SecurityAuditLogger';
 import RoleBasedAccess from '@/components/RoleBasedAccess';
 import { Shield } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { hasAccess, isInTrial, getTrialDaysRemaining } = useSubscription();
+  const { profile, loading: profileLoading } = useUserProfile();
   
   // Enable automatic audit logging for auth events
   useAuthAuditLogger();
@@ -33,6 +37,14 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleUpgrade = () => {
+    navigate('/subscription'); // or wherever your subscription upgrade flow is
+  };
+
+  const handleCompleteProfile = () => {
+    navigate('/profile'); // or wherever your profile completion flow is
   };
 
   if (!user) {
@@ -72,7 +84,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <ProfileCompletionCheck />
+        <ProfileCompletionCheck 
+          profile={profile}
+          onCompleteProfile={handleCompleteProfile}
+        />
 
         {/* Quick Stats */}
         <QuickStats className="mb-8" />
@@ -88,7 +103,12 @@ const Dashboard = () => {
           
           {/* Right Column */}
           <div className="space-y-8">
-            <SubscriptionCard />
+            <SubscriptionCard 
+              hasAccess={hasAccess()}
+              onUpgrade={handleUpgrade}
+              isInTrial={isInTrial()}
+              trialDaysRemaining={getTrialDaysRemaining()}
+            />
             <RecentActivity />
             <InjuryTracker />
           </div>
