@@ -9,13 +9,24 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log(`[ADMIN-AUTH] Request received: ${req.method} ${req.url}`)
+  
   if (req.method === 'OPTIONS') {
+    console.log('[ADMIN-AUTH] Handling CORS preflight')
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[ADMIN-AUTH] Missing environment variables')
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
+    }
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -24,10 +35,29 @@ serve(async (req) => {
       }
     })
     
-    const { action, email, password, session_token } = await req.json()
+    let requestBody
+    try {
+      requestBody = await req.json()
+    } catch (error) {
+      console.error('[ADMIN-AUTH] Invalid JSON in request body:', error)
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+    
+    const { action, email, password, session_token } = requestBody
+    console.log(`[ADMIN-AUTH] Action: ${action}`)
 
     if (action === 'login') {
-      console.log(`Login attempt for: ${email}`)
+      if (!email || !password) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Email and password required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        )
+      }
+
+      console.log(`[ADMIN-AUTH] Login attempt for: ${email}`)
       
       // Verify admin credentials using the database function
       const { data: isValid, error: verifyError } = await supabase.rpc('verify_admin_password', {
@@ -36,7 +66,7 @@ serve(async (req) => {
       })
 
       if (verifyError) {
-        console.error('Password verification error:', verifyError)
+        console.error('[ADMIN-AUTH] Password verification error:', verifyError)
         return new Response(
           JSON.stringify({ success: false, error: 'Authentication failed' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -44,14 +74,14 @@ serve(async (req) => {
       }
 
       if (!isValid) {
-        console.log('Invalid credentials for:', email)
+        console.log('[ADMIN-AUTH] Invalid credentials for:', email)
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         )
       }
 
-      console.log('Password verified successfully')
+      console.log('[ADMIN-AUTH] Password verified successfully')
 
       // Get admin user details
       const { data: adminUser, error: adminError } = await supabase
@@ -62,7 +92,7 @@ serve(async (req) => {
         .single()
 
       if (adminError || !adminUser) {
-        console.error('Admin user lookup error:', adminError)
+        console.error('[ADMIN-AUTH] Admin user lookup error:', adminError)
         return new Response(
           JSON.stringify({ success: false, error: 'User not found' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -80,12 +110,12 @@ serve(async (req) => {
           admin_id: adminUser.id,
           session_token: sessionToken,
           expires_at: expiresAt.toISOString(),
-          ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+          ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
           user_agent: req.headers.get('user-agent') || 'unknown'
         })
 
       if (sessionError) {
-        console.error('Session creation error:', sessionError)
+        console.error('[ADMIN-AUTH] Session creation error:', sessionError)
         return new Response(
           JSON.stringify({ success: false, error: 'Session creation failed' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -98,7 +128,7 @@ serve(async (req) => {
         .update({ last_login: new Date().toISOString() })
         .eq('id', adminUser.id)
 
-      console.log(`Login successful for: ${email}`)
+      console.log(`[ADMIN-AUTH] Login successful for: ${email}`)
 
       return new Response(
         JSON.stringify({
@@ -139,6 +169,7 @@ serve(async (req) => {
         .single()
 
       if (sessionError || !session) {
+        console.log('[ADMIN-AUTH] Session lookup failed:', sessionError)
         return new Response(
           JSON.stringify({ valid: false, error: 'Invalid session' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -202,13 +233,13 @@ serve(async (req) => {
         )
       }
 
-      console.log('Fetching users with admin API...')
+      console.log('[ADMIN-AUTH] Fetching users with admin API...')
 
       // Get all users using the admin API (this is the correct way)
       const { data: authData, error: authError } = await supabase.auth.admin.listUsers()
       
       if (authError) {
-        console.error('Error fetching auth users:', authError)
+        console.error('[ADMIN-AUTH] Error fetching auth users:', authError)
         return new Response(
           JSON.stringify({ error: 'Failed to fetch users' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -216,7 +247,7 @@ serve(async (req) => {
       }
 
       const authUsers = authData?.users || []
-      console.log(`Found ${authUsers.length} auth users`)
+      console.log(`[ADMIN-AUTH] Found ${authUsers.length} auth users`)
 
       // Get subscription data
       const { data: subscribers, error: subError } = await supabase
@@ -224,7 +255,7 @@ serve(async (req) => {
         .select('user_id, subscribed, subscription_tier, subscription_end, trial_end')
 
       if (subError) {
-        console.error('Error fetching subscribers:', subError)
+        console.error('[ADMIN-AUTH] Error fetching subscribers:', subError)
       }
 
       // Get profile data
@@ -233,7 +264,7 @@ serve(async (req) => {
         .select('id, full_name')
 
       if (profileError) {
-        console.error('Error fetching profiles:', profileError)
+        console.error('[ADMIN-AUTH] Error fetching profiles:', profileError)
       }
 
       // Get activity counts
@@ -296,7 +327,7 @@ serve(async (req) => {
         }
       })
 
-      console.log(`Returning ${users.length} users with complete data`)
+      console.log(`[ADMIN-AUTH] Returning ${users.length} users with complete data`)
 
       return new Response(
         JSON.stringify({ users }),
@@ -401,7 +432,7 @@ serve(async (req) => {
         total_injuries: injuries?.length || 0,
       }
 
-      console.log('Analytics data:', analytics)
+      console.log('[ADMIN-AUTH] Analytics data:', analytics)
 
       return new Response(
         JSON.stringify(analytics),
@@ -415,9 +446,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Admin auth error:', error)
+    console.error('[ADMIN-AUTH] Server error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }

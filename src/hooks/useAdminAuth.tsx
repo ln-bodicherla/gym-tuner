@@ -35,8 +35,19 @@ export const useAdminAuth = () => {
         body: { action: 'verify', session_token: token }
       });
 
-      if (error || !data?.valid) {
-        console.log('Token verification failed:', error || 'Invalid token');
+      if (error) {
+        console.error('Token verification failed:', error);
+        localStorage.removeItem('admin_token');
+        setAuthState({
+          isAuthenticated: false,
+          loading: false,
+          adminInfo: null
+        });
+        return;
+      }
+
+      if (!data?.valid) {
+        console.log('Token verification failed:', data?.error || 'Invalid token');
         localStorage.removeItem('admin_token');
         setAuthState({
           isAuthenticated: false,
