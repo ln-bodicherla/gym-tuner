@@ -32,7 +32,7 @@ export const useAdminAuth = () => {
       }
 
       const { data, error } = await supabase.functions.invoke('admin-auth', {
-        body: { action: 'verify', session_token: token }
+        body: { action: 'verify', sessionToken: token }
       });
 
       if (error || !data?.valid) {
@@ -49,7 +49,7 @@ export const useAdminAuth = () => {
       setAuthState({
         isAuthenticated: true,
         loading: false,
-        adminInfo: data.admin
+        adminInfo: data.user
       });
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -80,7 +80,7 @@ export const useAdminAuth = () => {
         return { success: false, error: data?.error || 'Invalid credentials' };
       }
 
-      localStorage.setItem('admin_token', data.session_token);
+      localStorage.setItem('admin_token', data.sessionToken);
       await checkAuthStatus();
       return { success: true };
     } catch (error) {
@@ -89,29 +89,23 @@ export const useAdminAuth = () => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('admin_token');
-    setAuthState({
-      isAuthenticated: false,
-      loading: false,
-      adminInfo: null
-    });
-  };
-
-  const getAnalytics = async () => {
+  const logout = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      if (!token) throw new Error('No admin session');
-
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
-        body: { action: 'analytics', session_token: token }
-      });
-
-      if (error) throw error;
-      return data;
+      if (token) {
+        await supabase.functions.invoke('admin-auth', {
+          body: { action: 'logout', sessionToken: token }
+        });
+      }
     } catch (error) {
-      console.error('Analytics fetch failed:', error);
-      throw error;
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('admin_token');
+      setAuthState({
+        isAuthenticated: false,
+        loading: false,
+        adminInfo: null
+      });
     }
   };
 
@@ -119,7 +113,6 @@ export const useAdminAuth = () => {
     ...authState,
     login,
     logout,
-    getAnalytics,
     refreshAuth: checkAuthStatus
   };
 };
