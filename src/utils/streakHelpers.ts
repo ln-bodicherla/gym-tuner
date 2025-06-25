@@ -47,19 +47,31 @@ export const calculateWorkoutStreak = (
   const workoutDateObjects = workoutDates.map(dateStr => new Date(dateStr + 'T00:00:00'));
   
   let streak = 0;
-  let currentDate = new Date(today);
+  let checkDate = new Date(today);
   
-  // If today is not a workout day, start from the most recent workout day
-  if (!isWorkoutDay(currentDate)) {
-    // Find the most recent workout day before or on today
-    while (currentDate >= new Date(workoutDateObjects[workoutDateObjects.length - 1]) && !isWorkoutDay(currentDate)) {
-      currentDate.setDate(currentDate.getDate() - 1);
+  // Check if today is a workout day and if user worked out today
+  const todayStr = formatPSTDate(today, 'yyyy-MM-dd');
+  const hasWorkedOutToday = workoutDateObjects.some(workoutDate => 
+    formatPSTDate(workoutDate, 'yyyy-MM-dd') === todayStr
+  );
+  
+  // Start checking from today if it's a workout day, otherwise from the most recent workout day
+  if (isWorkoutDay(today)) {
+    // If today is a workout day, check if user worked out
+    if (hasWorkedOutToday) {
+      streak = 1;
+      checkDate = getPreviousWorkoutDay(checkDate);
+    } else {
+      // If today is a workout day but user didn't work out, streak is broken
+      return 0;
+    }
+  } else {
+    // If today is not a workout day, start from the most recent workout day
+    while (checkDate >= new Date(workoutDateObjects[workoutDateObjects.length - 1]) && !isWorkoutDay(checkDate)) {
+      checkDate.setDate(checkDate.getDate() - 1);
     }
   }
 
-  // Start checking from the current date (or most recent workout day)
-  let checkDate = new Date(currentDate);
-  
   // Count streak by going backwards through workout days
   while (isWorkoutDay(checkDate)) {
     const checkDateStr = formatPSTDate(checkDate, 'yyyy-MM-dd');
