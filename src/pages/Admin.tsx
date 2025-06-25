@@ -29,13 +29,14 @@ interface SimpleAnalytics {
   totalPlans: number;
 }
 
-interface UserDetails {
+interface UserWithSubscription {
   id: string;
-  email: string;
-  created_at: string;
-  last_sign_in_at: string | null;
-  email_confirmed_at: string | null;
   full_name: string | null;
+  created_at: string;
+  subscription_status: 'free' | 'trial' | 'paid';
+  subscription_tier: string | null;
+  trial_end: string | null;
+  subscription_end: string | null;
 }
 
 const ADMIN_PASSWORD = 'GymTuner2025!Admin';
@@ -44,7 +45,7 @@ const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [analytics, setAnalytics] = useState<SimpleAnalytics | null>(null);
-  const [users, setUsers] = useState<UserDetails[]>([]);
+  const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -130,42 +131,48 @@ const Admin = () => {
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      // Get users from auth.users using admin API
-      const { data: authData, error } = await supabase.auth.admin.listUsers();
+      // Get users from profiles table and join with subscription data
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, created_at');
       
-      if (error) throw error;
+      if (profilesError) throw profilesError;
       
-      const usersWithProfiles = await Promise.all(
-        (authData?.users || []).map(async (user) => {
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', user.id)
-              .single();
+      // Get subscription data
+      const { data: subscriptionsData, error: subscriptionsError } = await supabase
+        .from('subscribers')
+        .select('user_id, subscribed, subscription_tier, trial_end, subscription_end');
+      
+      if (subscriptionsError) {
+        console.warn('Could not load subscription data:', subscriptionsError);
+      }
 
-            return {
-              id: user.id,
-              email: user.email || '',
-              created_at: user.created_at,
-              last_sign_in_at: user.last_sign_in_at,
-              email_confirmed_at: user.email_confirmed_at,
-              full_name: profile?.full_name || null,
-            };
-          } catch {
-            return {
-              id: user.id,
-              email: user.email || '',
-              created_at: user.created_at,
-              last_sign_in_at: user.last_sign_in_at,
-              email_confirmed_at: user.email_confirmed_at,
-              full_name: null,
-            };
+      // Combine profile and subscription data
+      const usersWithSubscriptions: UserWithSubscription[] = (profilesData || []).map(profile => {
+        const subscription = subscriptionsData?.find(sub => sub.user_id === profile.id);
+        
+        let subscriptionStatus: 'free' | 'trial' | 'paid' = 'free';
+        
+        if (subscription) {
+          if (subscription.subscribed) {
+            subscriptionStatus = 'paid';
+          } else if (subscription.trial_end && new Date(subscription.trial_end) > new Date()) {
+            subscriptionStatus = 'trial';
           }
-        })
-      );
+        }
 
-      setUsers(usersWithProfiles);
+        return {
+          id: profile.id,
+          full_name: profile.full_name,
+          created_at: profile.created_at,
+          subscription_status: subscriptionStatus,
+          subscription_tier: subscription?.subscription_tier || null,
+          trial_end: subscription?.trial_end || null,
+          subscription_end: subscription?.subscription_end || null,
+        };
+      });
+
+      setUsers(usersWithSubscriptions);
     } catch (error) {
       console.error('Failed to load users:', error);
       toast({
@@ -181,6 +188,17 @@ const Admin = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const getSubscriptionBadge = (user: UserWithSubscription) => {
+    switch (user.subscription_status) {
+      case 'paid':
+        return <Badge className="bg-green-500 text-white">Paid {user.subscription_tier || ''}</Badge>;
+      case 'trial':
+        return <Badge className="bg-blue-500 text-white">Trial</Badge>;
+      default:
+        return <Badge variant="outline" className="border-gray-300 text-gray-600">Free</Badge>;
+    }
   };
 
   if (!isAuthenticated) {
@@ -364,7 +382,7 @@ const Admin = () => {
                   All Users ({users.length})
                 </CardTitle>
                 <CardDescription>
-                  Complete list of registered users
+                  Complete list of registered users with subscription status
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -379,9 +397,9 @@ const Admin = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>User</TableHead>
-                          <TableHead>Email Status</TableHead>
+                          <TableHead>Subscription</TableHead>
                           <TableHead>Joined</TableHead>
-                          <TableHead>Last Login</TableHead>
+                          <TableHead>Details</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -394,29 +412,28 @@ const Admin = () => {
                                   <div className="font-medium">
                                     {user.full_name || 'Unknown'}
                                   </div>
-                                  <div className="flex items-center space-x-1 text-sm text-gray-500">
-                                    <Mail className="h-3 w-3" />
-                                    <span>{user.email}</span>
+                                  <div className="text-sm text-gray-500">
+                                    ID: {user.id.slice(0, 8)}...
                                   </div>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
-                              {user.email_confirmed_at ? (
-                                <Badge variant="default" className="bg-green-500">
-                                  Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-red-300 text-red-600">
-                                  Unverified
-                                </Badge>
-                              )}
+                              {getSubscriptionBadge(user)}
                             </TableCell>
                             <TableCell className="text-sm text-gray-600">
                               {formatDate(user.created_at)}
                             </TableCell>
                             <TableCell className="text-sm text-gray-600">
-                              {formatDate(user.last_sign_in_at)}
+                              {user.subscription_status === 'trial' && user.trial_end && (
+                                <div>Trial ends: {formatDate(user.trial_end)}</div>
+                              )}
+                              {user.subscription_status === 'paid' && user.subscription_end && (
+                                <div>Renews: {formatDate(user.subscription_end)}</div>
+                              )}
+                              {user.subscription_status === 'free' && (
+                                <div>Free account</div>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
