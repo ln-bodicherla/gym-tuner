@@ -49,9 +49,11 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
-                <Dumbbell className="h-5 w-5 text-white" />
-              </div>
+              <img 
+                src="/lovable-uploads/55313bfe-f8c5-4bd8-ba08-dab341d3bc95.png" 
+                alt="Gym Tuner Logo" 
+                className="h-8 w-8 object-contain"
+              />
               <span className="text-xl font-bold text-gray-900">Gym Tuner</span>
             </div>
             
@@ -310,9 +312,11 @@ const Landing = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center">
-                  <Dumbbell className="h-5 w-5 text-white" />
-                </div>
+                <img 
+                  src="/lovable-uploads/55313bfe-f8c5-4bd8-ba08-dab341d3bc95.png" 
+                  alt="Gym Tuner Logo" 
+                  className="h-8 w-8 object-contain"
+                />
                 <span className="text-xl font-bold">Gym Tuner</span>
               </div>
               <p className="text-gray-400 mb-4">
