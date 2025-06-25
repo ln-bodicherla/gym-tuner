@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Users, Star, Crown, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { AnalyticsButton } from "@/components/AnalyticsButton";
 
 const Landing = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,12 +83,21 @@ const Landing = () => {
               <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
               <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors">Testimonials</a>
               <Link to="/auth">
-                <Button variant="outline" className="mr-4">Sign In</Button>
+                <AnalyticsButton 
+                  variant="outline" 
+                  className="mr-4"
+                  eventName="nav_signin_click"
+                >
+                  Sign In
+                </AnalyticsButton>
               </Link>
               <Link to="/auth">
-                <Button className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600">
+                <AnalyticsButton 
+                  className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600"
+                  eventName="nav_getstarted_click"
+                >
                   Get Started
-                </Button>
+                </AnalyticsButton>
               </Link>
             </div>
 
@@ -112,12 +122,21 @@ const Landing = () => {
                 <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Testimonials</a>
                 <div className="px-4 pt-4 border-t space-y-2">
                   <Link to="/auth" className="block">
-                    <Button variant="outline" className="w-full">Sign In</Button>
+                    <AnalyticsButton 
+                      variant="outline" 
+                      className="w-full"
+                      eventName="mobile_signin_click"
+                    >
+                      Sign In
+                    </AnalyticsButton>
                   </Link>
                   <Link to="/auth" className="block">
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600">
+                    <AnalyticsButton 
+                      className="w-full bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600"
+                      eventName="mobile_getstarted_click"
+                    >
                       Get Started
-                    </Button>
+                    </AnalyticsButton>
                   </Link>
                 </div>
               </div>
@@ -142,9 +161,13 @@ const Landing = () => {
             </p>
             <div className="flex justify-center">
               <Link to="/auth">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-8 py-3 text-lg">
+                <AnalyticsButton 
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600 px-8 py-3 text-lg"
+                  eventName="hero_start_journey_click"
+                >
                   Start Your Journey
-                </Button>
+                </AnalyticsButton>
               </Link>
             </div>
           </div>
@@ -230,10 +253,14 @@ const Landing = () => {
                 </div>
                 
                 <Link to="/auth" className="block">
-                  <Button className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
+                  <AnalyticsButton 
+                    className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+                    eventName="pricing_subscribe_click"
+                    eventData={{ plan: 'pro', price: 9.99 }}
+                  >
                     <Crown className="h-4 w-4 mr-2" />
                     Subscribe Now
-                  </Button>
+                  </AnalyticsButton>
                 </Link>
                 
                 <div className="text-center space-y-2">
@@ -283,9 +310,14 @@ const Landing = () => {
                     Already transforming their fitness journey with Gym Tuner
                   </p>
                   <Link to="/auth">
-                    <Button variant="secondary" size="lg" className="w-full">
+                    <AnalyticsButton 
+                      variant="secondary" 
+                      size="lg" 
+                      className="w-full"
+                      eventName="benefits_getstarted_click"
+                    >
                       Get Started Today
-                    </Button>
+                    </AnalyticsButton>
                   </Link>
                 </div>
               </div>
