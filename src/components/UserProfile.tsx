@@ -182,6 +182,9 @@ const UserProfile = () => {
 
       // Reload the profile to confirm the save
       await loadProfile();
+      
+      // Trigger a custom event to notify other components that the profile was updated
+      window.dispatchEvent(new CustomEvent('profile-updated'));
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({

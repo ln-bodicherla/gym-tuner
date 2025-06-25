@@ -13,6 +13,7 @@ import SubscriptionManager from "@/components/SubscriptionManager";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 
@@ -21,6 +22,7 @@ const Index = () => {
   const { toast } = useToast();
   const { signOut, user, loading: authLoading, session } = useAuth();
   const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete, hasAccess } = useSubscription();
+  const { profile, loading: profileLoading } = useUserProfile();
 
   // Redirect if not authenticated - double protection
   if (!authLoading && (!user || !session)) {
@@ -132,6 +134,10 @@ const Index = () => {
   };
 
   const getUserDisplayName = () => {
+    // Use database profile name first, then fallback to user metadata, then email
+    if (profile?.full_name) {
+      return profile.full_name;
+    }
     return user?.user_metadata?.full_name || user?.email || 'User';
   };
 
@@ -144,8 +150,8 @@ const Index = () => {
     { value: "subscription", label: "Pro", icon: Crown },
   ];
 
-  // Show loading state while checking authentication
-  if (authLoading || !user || !session) {
+  // Show loading state while checking authentication or loading profile
+  if (authLoading || !user || !session || profileLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
