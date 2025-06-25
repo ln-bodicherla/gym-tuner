@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,21 +42,31 @@ const PasswordReset = () => {
     }
 
     try {
+      console.log('Attempting to update password...');
+      
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (error) {
+        console.error('Password update error:', error);
         setError(error.message);
       } else {
+        console.log('Password updated successfully');
         toast({
           title: "Password updated successfully!",
           description: "You can now sign in with your new password.",
         });
-        // Redirect to dashboard or sign in page
-        navigate('/dashboard');
+        
+        // Sign out the user and redirect to auth page for fresh login
+        await supabase.auth.signOut();
+        
+        // Clear the reset parameter from URL and redirect to login
+        window.history.replaceState({}, document.title, '/auth');
+        navigate('/auth', { replace: true });
       }
     } catch (err: any) {
+      console.error('Password reset error:', err);
       setError(err.message || 'An error occurred while updating your password');
     }
 

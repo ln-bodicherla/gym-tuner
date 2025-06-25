@@ -12,17 +12,32 @@ const Auth = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const isPasswordReset = urlParams.get('reset') === 'true';
     
-    // Also check if we have a session (user clicked reset link)
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    if (isPasswordReset) {
+      // Check if we have a valid session for password reset
+      const checkResetSession = async () => {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('Password reset check:', { session: !!session, error });
+        
+        // If we have a session and the reset parameter, show password reset form
+        if (session && !error) {
+          setShowPasswordReset(true);
+        }
+      };
+
+      checkResetSession();
+    }
+
+    // Listen for auth state changes to handle password recovery
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event in Auth page:', event, !!session);
       
-      // If we have reset=true in URL and a session, show password reset form
-      if (isPasswordReset && session) {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && isPasswordReset)) {
         setShowPasswordReset(true);
       }
-    };
+    });
 
-    checkSession();
+    return () => subscription.unsubscribe();
   }, []);
 
   if (showPasswordReset) {

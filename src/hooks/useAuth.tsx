@@ -21,10 +21,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for password reset in URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPasswordReset = urlParams.get('reset') === 'true';
-    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -35,28 +31,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (event === 'SIGNED_OUT') {
           console.log('User signed out, clearing all state');
-          // Ensure state is completely cleared
           setSession(null);
           setUser(null);
-          // Clear any remaining auth data from storage
           localStorage.removeItem('supabase.auth.token');
           sessionStorage.clear();
-          // Force redirect to landing page after sign out
           window.location.href = '/';
         } else if (event === 'SIGNED_IN' && session?.user) {
-          // Check if this is a password reset flow
-          if (isPasswordReset) {
-            // For password reset, stay on auth page to allow user to set new password
-            console.log('Password reset flow detected');
-          } else {
-            // Only redirect if currently on auth page and not a password reset
-            if (window.location.pathname === '/auth') {
-              window.location.href = '/dashboard';
-            }
+          // Check if this is NOT a password reset flow
+          const urlParams = new URLSearchParams(window.location.search);
+          const isPasswordReset = urlParams.get('reset') === 'true';
+          
+          if (!isPasswordReset && window.location.pathname === '/auth') {
+            window.location.href = '/dashboard';
           }
         } else if (event === 'PASSWORD_RECOVERY') {
           console.log('Password recovery event detected');
-          // User clicked the reset link, they can now set a new password
+          // Don't redirect, let the Auth component handle showing the password reset form
         }
       }
     );
@@ -73,10 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    // Get the actual current URL instead of localhost
-    const redirectUrl = window.location.origin.includes('localhost') 
-      ? window.location.origin.replace('localhost:3000', window.location.hostname) 
-      : `${window.location.origin}/dashboard`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -100,7 +87,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithGoogle = async () => {
-    // Use the actual current URL, not localhost
     const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signInWithOAuth({
@@ -120,29 +106,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Initiating complete sign out...');
       
-      // Clear local state first
       setSession(null);
       setUser(null);
       
-      // Sign out from Supabase with 'local' scope to clear browser storage
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
         console.error('Error signing out from Supabase:', error);
       }
       
-      // Force clear all auth-related storage
       localStorage.removeItem('supabase.auth.token');
       localStorage.removeItem('sb-icicfihvflooltswigjb-auth-token');
       sessionStorage.clear();
       
       console.log('Successfully cleared all authentication data');
       
-      // Force redirect to landing page
       window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
-      // Even if there's an error, clear everything and redirect
       setSession(null);
       setUser(null);
       localStorage.clear();
