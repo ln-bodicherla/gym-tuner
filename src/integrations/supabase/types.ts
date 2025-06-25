@@ -36,77 +36,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_sessions: {
-        Row: {
-          admin_id: string
-          created_at: string
-          expires_at: string
-          id: string
-          ip_address: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          admin_id: string
-          created_at?: string
-          expires_at: string
-          id?: string
-          ip_address?: string | null
-          session_token: string
-          user_agent?: string | null
-        }
-        Update: {
-          admin_id?: string
-          created_at?: string
-          expires_at?: string
-          id?: string
-          ip_address?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_sessions_admin_id_fkey"
-            columns: ["admin_id"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      admin_users: {
-        Row: {
-          created_at: string
-          email: string
-          full_name: string
-          id: string
-          is_active: boolean
-          last_login: string | null
-          password_hash: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          full_name: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          full_name?: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       analytics_events: {
         Row: {
           browser: string | null
@@ -377,48 +306,6 @@ export type Database = {
         }
         Relationships: []
       }
-      security_audit_log: {
-        Row: {
-          action: string
-          created_at: string | null
-          error_message: string | null
-          id: string
-          ip_address: unknown | null
-          metadata: Json | null
-          resource_id: string | null
-          resource_type: string | null
-          success: boolean | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          resource_id?: string | null
-          resource_type?: string | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          resource_id?: string | null
-          resource_type?: string | null
-          success?: boolean | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       subscribers: {
         Row: {
           created_at: string
@@ -455,30 +342,6 @@ export type Database = {
           trial_end?: string | null
           updated_at?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
         }
         Relationships: []
       }
@@ -612,28 +475,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
-      has_role: {
-        Args: {
-          _user_id: string
-          _role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
-      verify_admin_password: {
-        Args: { input_email: string; input_password: string }
-        Returns: boolean
-      }
-      verify_password: {
-        Args: { password: string; hash: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -748,8 +593,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "moderator", "user"],
-    },
+    Enums: {},
   },
 } as const
