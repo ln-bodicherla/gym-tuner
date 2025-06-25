@@ -49,6 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailRequest.type === 'trial_welcome') {
       console.log('[SEND-SUBSCRIPTION-EMAILS] Sending trial welcome email');
+      console.log('[SEND-SUBSCRIPTION-EMAILS] Trial end date received:', emailRequest.trialEndDate);
       
       subject = 'Welcome to your Gym Tuner Pro free trial! 🎉';
       emailHtml = await renderAsync(
@@ -61,6 +62,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     } else if (emailRequest.type === 'payment_confirmation') {
       console.log('[SEND-SUBSCRIPTION-EMAILS] Sending payment confirmation email');
+      console.log('[SEND-SUBSCRIPTION-EMAILS] Billing dates:', {
+        start: emailRequest.billingPeriodStart,
+        end: emailRequest.billingPeriodEnd,
+        next: emailRequest.nextBillingDate
+      });
       
       subject = 'Payment confirmed - Gym Tuner Pro subscription renewed ✅';
       emailHtml = await renderAsync(
@@ -90,7 +96,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('[SEND-SUBSCRIPTION-EMAILS] Email sent successfully:', emailResponse);
 
-    // Log the email in the database for tracking
+    // Log the email in the database for tracking with proper timestamp
+    const currentTimestamp = new Date().toISOString();
+    console.log('[SEND-SUBSCRIPTION-EMAILS] Logging email with timestamp:', currentTimestamp);
+    
     await supabase
       .from('email_logs')
       .insert({
@@ -99,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
         recipient: emailRequest.email,
         subject,
         status: 'sent',
-        sent_at: new Date().toISOString(),
+        sent_at: currentTimestamp,
       });
 
     return new Response(JSON.stringify({ success: true, emailId: emailResponse.data?.id }), {

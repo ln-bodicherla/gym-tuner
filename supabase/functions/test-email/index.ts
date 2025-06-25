@@ -190,9 +190,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('[TEST-EMAIL] Sending sample email to:', email);
 
-    // Sample data for testing
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 30);
+    // Fix: Proper date handling to avoid 1969 issue
+    const now = new Date();
+    const trialEndDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+    
+    console.log('[TEST-EMAIL] Current date:', now.toISOString());
+    console.log('[TEST-EMAIL] Trial end date:', trialEndDate.toISOString());
     
     const dashboardUrl = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '')}.lovableproject.com/dashboard` || 'https://gymtuner.app/dashboard';
 
@@ -220,7 +223,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ 
       success: true, 
       emailId: emailResponse.data?.id,
-      message: 'Sample trial welcome email sent successfully!' 
+      message: 'Sample trial welcome email sent successfully!',
+      trialEndDate: trialEndDate.toISOString()
     }), {
       status: 200,
       headers: {

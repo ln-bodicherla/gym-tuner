@@ -90,7 +90,18 @@ async function handleTrialStart(subscription: Stripe.Subscription) {
           .eq('id', user.user_id)
           .single();
 
-        const trialEnd = new Date(subscription.trial_end! * 1000);
+        // Fix: Ensure proper date handling for trial end
+        let trialEndDate: Date;
+        if (subscription.trial_end && subscription.trial_end > 0) {
+          // Convert Unix timestamp to milliseconds and create Date
+          trialEndDate = new Date(subscription.trial_end * 1000);
+        } else {
+          // Fallback: 30 days from now
+          trialEndDate = new Date();
+          trialEndDate.setDate(trialEndDate.getDate() + 30);
+        }
+        
+        console.log('[STRIPE-WEBHOOK] Trial end date:', trialEndDate.toISOString());
         
         // Send trial welcome email
         await supabase.functions.invoke('send-subscription-emails', {
@@ -99,7 +110,7 @@ async function handleTrialStart(subscription: Stripe.Subscription) {
             userId: user.user_id,
             email: customer.email,
             userName: profile?.full_name || customer.email.split('@')[0],
-            trialEndDate: trialEnd.toLocaleDateString('en-US', { 
+            trialEndDate: trialEndDate.toLocaleDateString('en-US', { 
               year: 'numeric', 
               month: 'long', 
               day: 'numeric' 
@@ -137,9 +148,15 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
             .single();
 
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-          const billingPeriodStart = new Date(invoice.period_start * 1000);
-          const billingPeriodEnd = new Date(invoice.period_end * 1000);
-          const nextBillingDate = new Date(subscription.current_period_end * 1000);
+          
+          // Fix: Ensure proper date handling for all dates
+          const billingPeriodStart = new Date(invoice.period_start && invoice.period_start > 0 ? invoice.period_start * 1000 : Date.now());
+          const billingPeriodEnd = new Date(invoice.period_end && invoice.period_end > 0 ? invoice.period_end * 1000 : Date.now());
+          const nextBillingDate = new Date(subscription.current_period_end && subscription.current_period_end > 0 ? subscription.current_period_end * 1000 : Date.now());
+
+          console.log('[STRIPE-WEBHOOK] Billing period start:', billingPeriodStart.toISOString());
+          console.log('[STRIPE-WEBHOOK] Billing period end:', billingPeriodEnd.toISOString());
+          console.log('[STRIPE-WEBHOOK] Next billing date:', nextBillingDate.toISOString());
 
           // Send payment confirmation email
           await supabase.functions.invoke('send-subscription-emails', {
@@ -179,12 +196,22 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   try {
+    // Fix: Ensure proper date handling for subscription end
+    let subscriptionEndDate: Date;
+    if (subscription.current_period_end && subscription.current_period_end > 0) {
+      subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+    } else {
+      subscriptionEndDate = new Date();
+    }
+
+    console.log('[STRIPE-WEBHOOK] Subscription end date:', subscriptionEndDate.toISOString());
+
     // Update subscription status in database
     const { error } = await supabase
       .from('subscribers')
       .update({
         subscribed: subscription.status === 'active',
-        subscription_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        subscription_end: subscriptionEndDate.toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('stripe_customer_id', subscription.customer);
