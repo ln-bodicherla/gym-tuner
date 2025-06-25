@@ -28,11 +28,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Navigate based on auth state
-        if (event === 'SIGNED_IN' && session) {
-          window.location.href = '/dashboard';
+        // Only redirect if we have a valid session and user
+        // Remove automatic redirects to prevent loops
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Only redirect if not already on dashboard and user actually signed in
+          if (window.location.pathname !== '/dashboard' && window.location.pathname === '/auth') {
+            window.location.href = '/dashboard';
+          }
         } else if (event === 'SIGNED_OUT') {
-          window.location.href = '/';
+          // Only redirect to landing if not already there
+          if (window.location.pathname !== '/') {
+            window.location.href = '/';
+          }
         }
       }
     );
