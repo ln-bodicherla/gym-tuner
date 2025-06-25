@@ -20,8 +20,8 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const aiApiKey = Deno.env.get("AI_API_KEY");
-    if (!aiApiKey) throw new Error("AI_API_KEY is not set");
+    const aiApiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!aiApiKey) throw new Error("GEMINI_API_KEY is not set");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -117,8 +117,8 @@ Make sure the total estimated time for all exercises (including rest) fits withi
 
     logStep("Calling AI API");
 
-    // Call AI API (using a generic endpoint that can be configured)
-    const aiApiUrl = Deno.env.get("AI_API_URL") || `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${aiApiKey}`;
+    // Call AI API
+    const aiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${aiApiKey}`;
     
     const aiResponse = await fetch(aiApiUrl, {
       method: 'POST',
