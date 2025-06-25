@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +21,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check for password reset in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPasswordReset = urlParams.get('reset') === 'true';
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -39,10 +44,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Force redirect to landing page after sign out
           window.location.href = '/';
         } else if (event === 'SIGNED_IN' && session?.user) {
-          // Only redirect if currently on auth page
-          if (window.location.pathname === '/auth') {
-            window.location.href = '/dashboard';
+          // Check if this is a password reset flow
+          if (isPasswordReset) {
+            // For password reset, stay on auth page to allow user to set new password
+            console.log('Password reset flow detected');
+          } else {
+            // Only redirect if currently on auth page and not a password reset
+            if (window.location.pathname === '/auth') {
+              window.location.href = '/dashboard';
+            }
           }
+        } else if (event === 'PASSWORD_RECOVERY') {
+          console.log('Password recovery event detected');
+          // User clicked the reset link, they can now set a new password
         }
       }
     );
