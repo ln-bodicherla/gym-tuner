@@ -52,7 +52,7 @@ serve(async (req) => {
       workoutsCount: userData.workouts?.length || 0
     });
 
-    // Prepare user context for AI
+    // Prepare user context for AI with enhanced workout history analysis
     const userContext = {
       profile: userData.profile || {},
       injuries: userData.injuries || [],
@@ -60,7 +60,10 @@ serve(async (req) => {
       recentWorkouts: userData.workouts || []
     };
 
-    // Create detailed prompt for AI
+    // Analyze workout patterns for better personalization
+    const workoutAnalysis = analyzeWorkoutHistory(userContext.recentWorkouts);
+    
+    // Create detailed prompt for AI with enhanced workout history context
     const prompt = `You are an expert fitness trainer and workout planner. Generate a personalized workout plan based on the following user data:
 
 USER PROFILE:
@@ -89,22 +92,21 @@ ${userContext.goals.map(goal =>
   `- ${goal.title}: ${goal.description || 'No description'} (Status: ${goal.status})`
 ).join('\n') || 'No specific goals set'}
 
-RECENT WORKOUT HISTORY (Last 30 days):
-${userContext.recentWorkouts.map(workout => 
-  `- ${workout.name} (${workout.duration_minutes}min) on ${workout.workout_date}`
-).join('\n') || 'No recent workouts'}
+WORKOUT HISTORY ANALYSIS:
+${generateWorkoutHistoryContext(userContext.recentWorkouts, workoutAnalysis)}
 
-Based on this information, create a personalized workout plan for today. The workout should:
+Based on this comprehensive information, create a personalized workout plan for today. The workout should:
 1. Be appropriate for the user's fitness level and any injuries
 2. Align with their fitness goals
 3. Respect their time constraints
-4. Consider their recent workout history to avoid overtraining
-5. Include proper warm-up and cool-down if time allows
+4. Consider their workout history to avoid overtraining and ensure progressive overload
+5. Vary from recent workouts to prevent plateaus and maintain engagement
+6. Include proper warm-up and cool-down if time allows
 
 Respond with a JSON object in this exact format:
 {
   "name": "Workout name (e.g., 'Upper Body Strength', 'HIIT Cardio Blast')",
-  "description": "Brief description of the workout and why it's suitable for this user",
+  "description": "Brief description of the workout and why it's suitable for this user based on their history",
   "duration_minutes": 45,
   "difficulty_level": "beginner|intermediate|advanced",
   "exercises": [
@@ -154,7 +156,7 @@ Make sure the total estimated time for all exercises (including rest) fits withi
         // If AI service is unavailable, use fallback
         if (aiResponse.status === 503 || aiResponse.status >= 500) {
           logStep("AI service unavailable, using fallback workout");
-          workoutPlan = createFallbackWorkout(userContext);
+          workoutPlan = createFallbackWorkout(userContext, workoutAnalysis);
         } else {
           throw new Error(`AI API error: ${aiResponse.status} ${aiResponse.statusText}`);
         }
@@ -179,18 +181,18 @@ Make sure the total estimated time for all exercises (including rest) fits withi
           }
         } catch (parseError) {
           logStep("JSON parse error, using fallback", { error: parseError.message });
-          workoutPlan = createFallbackWorkout(userContext);
+          workoutPlan = createFallbackWorkout(userContext, workoutAnalysis);
         }
       }
     } catch (networkError) {
       logStep("Network error, using fallback", { error: networkError.message });
-      workoutPlan = createFallbackWorkout(userContext);
+      workoutPlan = createFallbackWorkout(userContext, workoutAnalysis);
     }
 
     // Validate the workout plan structure
     if (!workoutPlan.name || !workoutPlan.exercises || !Array.isArray(workoutPlan.exercises)) {
       logStep("Invalid workout plan structure, using fallback");
-      workoutPlan = createFallbackWorkout(userContext);
+      workoutPlan = createFallbackWorkout(userContext, workoutAnalysis);
     }
 
     logStep("Workout plan generated successfully", { 
@@ -213,17 +215,96 @@ Make sure the total estimated time for all exercises (including rest) fits withi
   }
 });
 
-function createFallbackWorkout(userContext: any) {
+function analyzeWorkoutHistory(workouts: any[]) {
+  if (!workouts || workouts.length === 0) {
+    return {
+      frequentExercises: [],
+      averageDuration: 45,
+      lastWorkoutDays: 999,
+      workoutTypes: [],
+      totalWorkouts: 0
+    };
+  }
+
+  // Calculate days since last workout
+  const lastWorkout = workouts[0];
+  const lastWorkoutDate = new Date(lastWorkout.workout_date);
+  const today = new Date();
+  const daysSinceLastWorkout = Math.floor((today.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Extract exercise patterns from workout names
+  const workoutNames = workouts.map(w => w.name?.toLowerCase() || '').filter(Boolean);
+  const exerciseKeywords = ['chest', 'back', 'legs', 'arms', 'shoulders', 'cardio', 'hiit', 'strength', 'core', 'abs'];
+  const workoutTypes = exerciseKeywords.filter(keyword => 
+    workoutNames.some(name => name.includes(keyword))
+  );
+
+  // Calculate average duration
+  const durationsWithData = workouts.filter(w => w.duration_minutes && w.duration_minutes > 0);
+  const averageDuration = durationsWithData.length > 0 
+    ? Math.round(durationsWithData.reduce((sum, w) => sum + w.duration_minutes, 0) / durationsWithData.length)
+    : 45;
+
+  return {
+    frequentExercises: workoutTypes,
+    averageDuration,
+    lastWorkoutDays: daysSinceLastWorkout,
+    workoutTypes,
+    totalWorkouts: workouts.length
+  };
+}
+
+function generateWorkoutHistoryContext(workouts: any[], analysis: any) {
+  if (!workouts || workouts.length === 0) {
+    return "No previous workout history available - this is a fresh start!";
+  }
+
+  let context = `Total Workouts Completed: ${analysis.totalWorkouts}\n`;
+  context += `Average Workout Duration: ${analysis.averageDuration} minutes\n`;
+  context += `Days Since Last Workout: ${analysis.lastWorkoutDays}\n`;
+  
+  if (analysis.workoutTypes.length > 0) {
+    context += `Previous Workout Focus Areas: ${analysis.workoutTypes.join(', ')}\n`;
+  }
+
+  // Add recent workout details for better context
+  context += "\nRecent Workout History:\n";
+  workouts.slice(0, 5).forEach((workout, index) => {
+    const date = new Date(workout.workout_date).toLocaleDateString();
+    context += `- ${workout.name || 'Workout'} (${workout.duration_minutes || 'Unknown'} min) on ${date}\n`;
+  });
+
+  // Add recommendations based on history
+  if (analysis.lastWorkoutDays > 7) {
+    context += "\nNote: It's been over a week since the last workout - consider a moderate intensity to ease back in.\n";
+  } else if (analysis.lastWorkoutDays <= 1) {
+    context += "\nNote: Recent workout detected - ensure adequate recovery and vary the focus area.\n";
+  }
+
+  return context;
+}
+
+function createFallbackWorkout(userContext: any, analysis: any) {
   const profile = userContext.profile || {};
-  const maxTime = profile.max_workout_time || 45;
+  const maxTime = profile.max_workout_time || analysis.averageDuration || 45;
   const fitnessLevel = profile.fitness_level || "beginner";
   const hasInjuries = userContext.injuries?.some((injury: any) => injury.status === 'active') || false;
   
-  // Create exercises based on user profile
+  // Create exercises based on user profile and workout history
   let exercises;
+  let workoutName;
+  let description;
+  
+  // Determine workout focus based on history to ensure variety
+  const recentWorkoutTypes = analysis.workoutTypes || [];
+  const shouldFocusCardio = !recentWorkoutTypes.includes('cardio') && recentWorkoutTypes.includes('strength');
+  const shouldFocusUpperBody = !recentWorkoutTypes.includes('chest') && !recentWorkoutTypes.includes('arms');
+  const shouldFocusLowerBody = !recentWorkoutTypes.includes('legs');
   
   if (hasInjuries) {
     // Low-impact exercises for users with injuries
+    workoutName = "Gentle Recovery Workout";
+    description = "A low-impact recovery session designed around your current injuries, focusing on movement and flexibility.";
     exercises = [
       { name: "Gentle Warm-up Walk", sets: 1, reps: "5 minutes", rest: "30s", completed: false },
       { name: "Seated Arm Circles", sets: 2, reps: "10 each direction", rest: "30s", completed: false },
@@ -232,42 +313,83 @@ function createFallbackWorkout(userContext: any) {
       { name: "Standing Calf Raises", sets: 2, reps: "12-15", rest: "45s", completed: false },
       { name: "Gentle Stretching", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
     ];
-  } else if (fitnessLevel === "beginner") {
+  } else if (shouldFocusCardio && fitnessLevel !== "beginner") {
+    workoutName = "High Energy Cardio Blast";
+    description = `A dynamic cardio session to complement your recent strength training, designed for your ${fitnessLevel} fitness level.`;
     exercises = [
+      { name: "Dynamic Warm-up", sets: 1, reps: "3 minutes", rest: "30s", completed: false },
+      { name: "Jumping Jacks", sets: 3, reps: "30s", rest: "30s", completed: false },
+      { name: "High Knees", sets: 3, reps: "30s", rest: "30s", completed: false },
+      { name: "Burpees", sets: 3, reps: "8-12", rest: "90s", completed: false },
+      { name: "Mountain Climbers", sets: 3, reps: "45s", rest: "60s", completed: false },
+      { name: "Jump Squats", sets: 3, reps: "12-15", rest: "60s", completed: false },
+      { name: "Cool-down Stretches", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ];
+  } else if (shouldFocusUpperBody) {
+    workoutName = "Upper Body Strength Focus";
+    description = `An upper body strength session to balance your recent lower body work, tailored for ${fitnessLevel} level.`;
+    exercises = fitnessLevel === "beginner" ? [
+      { name: "Arm Circles Warm-up", sets: 1, reps: "2 minutes", rest: "30s", completed: false },
+      { name: "Wall Push-ups", sets: 3, reps: "8-12", rest: "60s", completed: false },
+      { name: "Incline Push-ups", sets: 2, reps: "6-10", rest: "60s", completed: false },
+      { name: "Arm Raises", sets: 2, reps: "10-12", rest: "45s", completed: false },
+      { name: "Modified Plank", sets: 2, reps: "20-30s", rest: "60s", completed: false },
+      { name: "Upper Body Stretches", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ] : [
+      { name: "Dynamic Upper Body Warm-up", sets: 1, reps: "3 minutes", rest: "30s", completed: false },
+      { name: "Push-ups", sets: 3, reps: "12-15", rest: "60s", completed: false },
+      { name: "Pike Push-ups", sets: 3, reps: "8-12", rest: "60s", completed: false },
+      { name: "Tricep Dips", sets: 3, reps: "10-15", rest: "60s", completed: false },
+      { name: "Plank Hold", sets: 3, reps: "45-60s", rest: "60s", completed: false },
+      { name: "Diamond Push-ups", sets: 2, reps: "6-10", rest: "90s", completed: false },
+      { name: "Upper Body Cool-down", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ];
+  } else if (shouldFocusLowerBody) {
+    workoutName = "Lower Body Power Session";
+    description = `A lower body focused workout to complement your recent upper body training, designed for ${fitnessLevel} level.`;
+    exercises = fitnessLevel === "beginner" ? [
+      { name: "Leg Swing Warm-up", sets: 1, reps: "2 minutes", rest: "30s", completed: false },
+      { name: "Bodyweight Squats", sets: 3, reps: "10-15", rest: "60s", completed: false },
+      { name: "Static Lunges", sets: 2, reps: "8-10 each leg", rest: "60s", completed: false },
+      { name: "Calf Raises", sets: 2, reps: "15-20", rest: "45s", completed: false },
+      { name: "Glute Bridges", sets: 2, reps: "12-15", rest: "60s", completed: false },
+      { name: "Lower Body Stretches", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ] : [
+      { name: "Dynamic Lower Body Warm-up", sets: 1, reps: "3 minutes", rest: "30s", completed: false },
+      { name: "Jump Squats", sets: 3, reps: "12-15", rest: "60s", completed: false },
+      { name: "Bulgarian Split Squats", sets: 3, reps: "10-12 each leg", rest: "60s", completed: false },
+      { name: "Single-leg Glute Bridges", sets: 2, reps: "10-12 each leg", rest: "60s", completed: false },
+      { name: "Walking Lunges", sets: 3, reps: "12-15 each leg", rest: "60s", completed: false },
+      { name: "Calf Raise Variations", sets: 2, reps: "15-20", rest: "45s", completed: false },
+      { name: "Lower Body Recovery", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ];
+  } else {
+    // Full body workout as default
+    workoutName = `${fitnessLevel.charAt(0).toUpperCase()}${fitnessLevel.slice(1)} Full Body Workout`;
+    description = `A balanced full-body workout session building on your previous training experience, designed for your ${fitnessLevel} fitness level.`;
+    exercises = fitnessLevel === "beginner" ? [
+      { name: "Full Body Warm-up", sets: 1, reps: "3 minutes", rest: "30s", completed: false },
       { name: "Bodyweight Squats", sets: 3, reps: "8-12", rest: "60s", completed: false },
       { name: "Modified Push-ups", sets: 3, reps: "5-10", rest: "60s", completed: false },
       { name: "Plank Hold", sets: 2, reps: "20-30s", rest: "60s", completed: false },
       { name: "Lunges", sets: 2, reps: "6-8 each leg", rest: "60s", completed: false },
       { name: "Mountain Climbers", sets: 2, reps: "20s", rest: "60s", completed: false },
-      { name: "Stretching Cool-down", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
-    ];
-  } else if (fitnessLevel === "intermediate") {
-    exercises = [
+      { name: "Full Body Stretching", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+    ] : [
+      { name: "Dynamic Full Body Warm-up", sets: 1, reps: "4 minutes", rest: "30s", completed: false },
       { name: "Jump Squats", sets: 3, reps: "12-15", rest: "60s", completed: false },
       { name: "Push-ups", sets: 3, reps: "10-15", rest: "60s", completed: false },
       { name: "Plank Hold", sets: 3, reps: "45-60s", rest: "60s", completed: false },
       { name: "Reverse Lunges", sets: 3, reps: "10-12 each leg", rest: "60s", completed: false },
       { name: "Burpees", sets: 2, reps: "8-10", rest: "90s", completed: false },
       { name: "Russian Twists", sets: 2, reps: "20", rest: "45s", completed: false },
-      { name: "Cool-down Stretches", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
-    ];
-  } else {
-    // Advanced level
-    exercises = [
-      { name: "Pistol Squats", sets: 3, reps: "5-8 each leg", rest: "90s", completed: false },
-      { name: "Diamond Push-ups", sets: 3, reps: "12-15", rest: "60s", completed: false },
-      { name: "Single-arm Plank", sets: 2, reps: "30s each arm", rest: "60s", completed: false },
-      { name: "Bulgarian Split Squats", sets: 3, reps: "12-15 each leg", rest: "60s", completed: false },
-      { name: "Burpee Box Jumps", sets: 3, reps: "8-10", rest: "90s", completed: false },
-      { name: "Pike Push-ups", sets: 2, reps: "8-12", rest: "60s", completed: false },
-      { name: "Hollow Body Hold", sets: 2, reps: "30-45s", rest: "60s", completed: false },
-      { name: "Stretching Routine", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
+      { name: "Recovery Stretches", sets: 1, reps: "5 minutes", rest: "0s", completed: false }
     ];
   }
 
   return {
-    name: `${fitnessLevel.charAt(0).toUpperCase()}${fitnessLevel.slice(1)} Full Body Workout`,
-    description: `A balanced full-body workout designed for your ${fitnessLevel} fitness level${hasInjuries ? ' with injury-friendly modifications' : ''}. This plan provides a complete workout experience while respecting your current capabilities.`,
+    name: workoutName,
+    description: description,
     duration_minutes: maxTime,
     difficulty_level: fitnessLevel,
     exercises: exercises

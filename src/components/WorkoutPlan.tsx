@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -132,16 +132,13 @@ const WorkoutPlan = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      // Load recent workouts (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+      // Load ALL workouts for better personalization (not just last 30 days)
       const { data: workoutsData } = await supabase
         .from('workouts')
         .select('*')
         .eq('user_id', user.id)
-        .gte('workout_date', thirtyDaysAgo.toISOString().split('T')[0])
-        .order('workout_date', { ascending: false });
+        .order('workout_date', { ascending: false })
+        .limit(50); // Limit to last 50 workouts for performance
 
       setUserData({
         profile: profileData,
@@ -712,32 +709,6 @@ const WorkoutPlan = () => {
                     )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Show user data status */}
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        AI Analysis Data:
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
-                        <div className="flex items-center">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Profile: {isProfileComplete ? 'Complete' : 'Incomplete'}
-                        </div>
-                        <div className="flex items-center">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Goals: {userData.goals.length} active
-                        </div>
-                        <div className="flex items-center">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Injuries: {userData.injuries.length} tracked
-                        </div>
-                        <div className="flex items-center">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Workouts: {userData.workouts.length} recent
-                        </div>
-                      </div>
-                    </div>
-                    
                     <Button 
                       onClick={generateWorkout} 
                       disabled={isGenerating || todayHasPlan || !isProfileComplete}
