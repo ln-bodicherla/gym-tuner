@@ -334,7 +334,7 @@ const Landing = () => {
               <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><a href="mailto:support@gymtuner.com" className="hover:text-white transition-colors">Contact Us</a></li>
+                <li><a href="mailto:contact@gymtuner.app" className="hover:text-white transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
