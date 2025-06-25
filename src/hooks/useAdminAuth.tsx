@@ -35,8 +35,18 @@ export const useAdminAuth = () => {
         body: { action: 'verify', sessionToken: token }
       });
 
-      if (error || !data?.valid) {
-        console.log('Token verification failed:', error || 'Invalid token');
+      if (error) {
+        console.error('Token verification failed:', error);
+        localStorage.removeItem('admin_token');
+        setAuthState({
+          isAuthenticated: false,
+          loading: false,
+          adminInfo: null
+        });
+        return;
+      }
+
+      if (!data?.valid) {
         localStorage.removeItem('admin_token');
         setAuthState({
           isAuthenticated: false,
@@ -64,28 +74,33 @@ export const useAdminAuth = () => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('Attempting login for:', email);
+      console.log('Attempting admin login for:', email);
       
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'login', email, password }
       });
 
       if (error) {
-        console.error('Login error:', error);
-        return { success: false, error: error.message || 'Login failed' };
+        console.error('Login request failed:', error);
+        return { success: false, error: 'Network error occurred' };
       }
 
       if (!data?.success) {
-        console.log('Login failed with data:', data);
-        return { success: false, error: data?.error || 'Invalid credentials' };
+        return { success: false, error: data?.error || 'Login failed' };
       }
 
       localStorage.setItem('admin_token', data.sessionToken);
-      await checkAuthStatus();
+      
+      setAuthState({
+        isAuthenticated: true,
+        loading: false,
+        adminInfo: data.user
+      });
+
       return { success: true };
     } catch (error) {
       console.error('Login exception:', error);
-      return { success: false, error: 'Network error occurred' };
+      return { success: false, error: 'Unexpected error occurred' };
     }
   };
 
