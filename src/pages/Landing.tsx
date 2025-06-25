@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Star, Crown, Check, Clock } from "lucide-react";
+import { CheckCircle, Menu, X, Smartphone, Brain, Target, TrendingUp, Crown, Check, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AnalyticsButton } from "@/components/AnalyticsButton";
 
@@ -28,27 +29,6 @@ const Landing = () => {
       icon: Smartphone,
       title: "Mobile Optimized",
       description: "Access your workouts anywhere with our responsive mobile design."
-    }
-  ];
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Fitness Enthusiast",
-      content: "Gym Tuner's AI suggestions have completely transformed my workout routine. I've never been more motivated!",
-      rating: 5
-    },
-    {
-      name: "Mike Chen",
-      role: "Personal Trainer",
-      content: "The injury tracking feature is invaluable. It helps me create safer, more effective programs for my clients.",
-      rating: 5
-    },
-    {
-      name: "Emma Davis",
-      role: "Busy Professional",
-      content: "Finally, a fitness app that understands my time constraints and gives me workouts that actually work.",
-      rating: 5
     }
   ];
 
@@ -81,7 +61,6 @@ const Landing = () => {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
               <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
-              <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors">Testimonials</a>
               <Link to="/auth">
                 <AnalyticsButton 
                   variant="outline" 
@@ -119,7 +98,6 @@ const Landing = () => {
               <div className="flex flex-col space-y-4">
                 <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Features</a>
                 <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Pricing</a>
-                <a href="#testimonials" className="text-gray-600 hover:text-blue-600 transition-colors px-4 py-2">Testimonials</a>
                 <div className="px-4 pt-4 border-t space-y-2">
                   <Link to="/auth" className="block">
                     <AnalyticsButton 
@@ -273,9 +251,6 @@ const Landing = () => {
                   <p className="text-xs text-gray-500">
                     No payment required today • Cancel anytime during trial
                   </p>
-                  <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                    💰 Full refund within 7 days after first charge
-                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -331,43 +306,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              What Our Users Say
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Don't just take our word for it. Here's what real users have to say about their Gym Tuner experience.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center space-x-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <CardDescription className="text-gray-700 italic">
-                    "{testimonial.content}"
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div>
-                    <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                    <p className="text-sm text-gray-600">{testimonial.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-gray-900 text-white px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-7xl mx-auto">
@@ -390,7 +328,6 @@ const Landing = () => {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#testimonials" className="hover:text-white transition-colors">Testimonials</a></li>
               </ul>
             </div>
             <div>

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -375,12 +376,9 @@ const SubscriptionManager = () => {
               <Crown className="h-5 w-5 mr-2" />
               {loading ? "Processing..." : "Start Free Trial"}
             </Button>
-            <div className="text-center space-y-2">
+            <div className="text-center">
               <p className="text-xs text-gray-500">
                 No payment required today. Cancel anytime during trial.
-              </p>
-              <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                💰 Full refund within 7 days after first charge
               </p>
             </div>
           </CardContent>

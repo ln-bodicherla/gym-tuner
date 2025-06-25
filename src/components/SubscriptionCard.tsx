@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Crown, Check, Lock, Clock } from "lucide-react";
+import { Crown, Check, Clock } from "lucide-react";
 import { PRO_FEATURES } from "@/config/subscriptionFeatures";
 
 interface SubscriptionCardProps {
