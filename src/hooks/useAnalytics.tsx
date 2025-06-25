@@ -91,12 +91,21 @@ export const useAnalytics = () => {
           previous_page: lastPageRef.current
         });
 
+        // Get current page views count and increment
+        const { data: currentSession } = await supabase
+          .from('analytics_sessions')
+          .select('page_views')
+          .eq('session_id', sessionIdRef.current)
+          .single();
+
+        const newPageViews = (currentSession?.page_views || 0) + 1;
+
         // Update session with new page view
         await supabase
           .from('analytics_sessions')
           .update({
             updated_at: new Date().toISOString(),
-            page_views: supabase.raw('page_views + 1'),
+            page_views: newPageViews,
             exit_page: location.pathname
           })
           .eq('session_id', sessionIdRef.current);

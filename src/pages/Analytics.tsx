@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -103,8 +102,8 @@ const Analytics = () => {
         .map(([country, sessions]) => ({ country, sessions }))
         .sort((a, b) => b.sessions - a.sessions);
 
-      // Daily views (last 30 days)
-      const dailyData = {};
+      // Daily views (last N days)
+      const dailyData: Record<string, { views: number; sessions: number }> = {};
       for (let i = 0; i < daysAgo; i++) {
         const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
@@ -126,7 +125,7 @@ const Analytics = () => {
       });
 
       const dailyViews = Object.entries(dailyData)
-        .map(([date, data]) => ({ date, ...data }))
+        .map(([date, dataPoint]) => ({ date, views: dataPoint.views, sessions: dataPoint.sessions }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       setData({
