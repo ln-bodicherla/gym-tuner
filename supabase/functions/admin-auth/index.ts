@@ -17,8 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('[ADMIN-AUTH] Missing environment variables')
@@ -38,6 +38,10 @@ serve(async (req) => {
     let requestBody
     try {
       requestBody = await req.json()
+      console.log('[ADMIN-AUTH] Request body received:', { 
+        action: requestBody.action, 
+        email: requestBody.email ? 'present' : 'missing' 
+      })
     } catch (error) {
       console.error('[ADMIN-AUTH] Invalid JSON in request body:', error)
       return new Response(
@@ -47,10 +51,11 @@ serve(async (req) => {
     }
     
     const { action, email, password, session_token } = requestBody
-    console.log(`[ADMIN-AUTH] Action: ${action}`)
+    console.log(`[ADMIN-AUTH] Processing action: ${action}`)
 
     if (action === 'login') {
       if (!email || !password) {
+        console.log('[ADMIN-AUTH] Missing email or password')
         return new Response(
           JSON.stringify({ success: false, error: 'Email and password required' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -59,7 +64,25 @@ serve(async (req) => {
 
       console.log(`[ADMIN-AUTH] Login attempt for: ${email}`)
       
-      // Verify admin credentials using the database function
+      // Check if admin user exists first
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('id, email, full_name, password_hash, is_active')
+        .eq('email', email)
+        .eq('is_active', true)
+        .single()
+
+      if (adminError || !adminUser) {
+        console.error('[ADMIN-AUTH] Admin user not found:', adminError)
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid credentials' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
+
+      console.log('[ADMIN-AUTH] Admin user found, verifying password')
+      
+      // Verify password using the database function
       const { data: isValid, error: verifyError } = await supabase.rpc('verify_admin_password', {
         input_email: email,
         input_password: password
@@ -74,7 +97,7 @@ serve(async (req) => {
       }
 
       if (!isValid) {
-        console.log('[ADMIN-AUTH] Invalid credentials for:', email)
+        console.log('[ADMIN-AUTH] Invalid password for:', email)
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -82,22 +105,6 @@ serve(async (req) => {
       }
 
       console.log('[ADMIN-AUTH] Password verified successfully')
-
-      // Get admin user details
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_users')
-        .select('id, email, full_name, is_active')
-        .eq('email', email)
-        .eq('is_active', true)
-        .single()
-
-      if (adminError || !adminUser) {
-        console.error('[ADMIN-AUTH] Admin user lookup error:', adminError)
-        return new Response(
-          JSON.stringify({ success: false, error: 'User not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-        )
-      }
 
       // Create session
       const sessionToken = crypto.randomUUID()

@@ -31,6 +31,8 @@ export const useAdminAuth = () => {
         return;
       }
 
+      console.log('[ADMIN-AUTH] Checking auth status with token');
+
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'verify', session_token: token }
       });
@@ -75,11 +77,13 @@ export const useAdminAuth = () => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('Attempting login for:', email);
+      console.log('[ADMIN-AUTH] Attempting login for:', email);
       
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'login', email, password }
       });
+
+      console.log('[ADMIN-AUTH] Login response:', { data, error });
 
       if (error) {
         console.error('Login error:', error);
