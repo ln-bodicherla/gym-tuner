@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +83,7 @@ const Landing = () => {
               </Link>
               <Link to="/auth">
                 <Button className="bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600">
-                  Get Started Free
+                  Get Started
                 </Button>
               </Link>
             </div>
@@ -114,7 +113,7 @@ const Landing = () => {
                   </Link>
                   <Link to="/auth" className="block">
                     <Button className="w-full bg-gradient-to-r from-blue-600 to-orange-500 hover:from-blue-700 hover:to-orange-600">
-                      Get Started Free
+                      Get Started
                     </Button>
                   </Link>
                 </div>
@@ -188,63 +187,25 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section - Only Pro Plan */}
       <section id="pricing" className="px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Choose Your Plan
+              Transform Your Fitness Journey
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Start free and upgrade to unlock premium features when you're ready.
+              Get full access to all premium features and unlock your potential.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* Free Plan */}
-            <Card className="border-2 border-gray-200">
-              <CardHeader className="text-center pb-8">
-                <CardTitle className="text-2xl mb-2">Free Plan</CardTitle>
-                <CardDescription className="text-gray-600 mb-4">
-                  Perfect for getting started
-                </CardDescription>
-                <div className="text-4xl font-bold text-gray-900">$0</div>
-                <div className="text-gray-600">/month</div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Basic workout tracking</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Limited AI suggestions</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Basic goal setting</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Injury tracking</span>
-                  </div>
-                </div>
-                
-                <Link to="/auth" className="block">
-                  <Button className="w-full" variant="outline">
-                    Get Started Free
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
+          <div className="max-w-md mx-auto">
             {/* Pro Plan */}
             <Card className="border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50 relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-1">
                   <Crown className="h-4 w-4" />
-                  <span>Most Popular</span>
+                  <span>Premium Plan</span>
                 </div>
               </div>
               <CardHeader className="text-center pb-8 pt-8">
@@ -274,15 +235,15 @@ const Landing = () => {
                   })}
                   <div className="flex items-center space-x-3">
                     <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Everything in Free Plan</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <span className="text-sm">Advanced workout analytics</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <span className="text-sm">Personalized injury management</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-sm">Unlimited AI-powered suggestions</span>
                   </div>
                 </div>
                 
