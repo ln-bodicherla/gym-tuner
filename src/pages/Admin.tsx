@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -171,21 +172,7 @@ const Admin = () => {
   const getSubscriptionStatus = (user: UserDetails) => {
     const now = new Date();
     
-    // Check if user has an active paid subscription
-    if (user.subscribed && user.subscription_end && new Date(user.subscription_end) > now) {
-      return (
-        <div className="flex flex-col gap-1">
-          <Badge variant="default" className="bg-green-500">
-            Paid - {user.subscription_tier || 'Active'}
-          </Badge>
-          <span className="text-xs text-gray-500">
-            Until {formatDate(user.subscription_end)}
-          </span>
-        </div>
-      );
-    }
-    
-    // Check if user is in free trial period
+    // Check if user is currently in trial period (regardless of subscription status)
     if (user.trial_end && new Date(user.trial_end) > now) {
       const trialDaysLeft = Math.ceil((new Date(user.trial_end).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return (
@@ -195,6 +182,20 @@ const Admin = () => {
           </Badge>
           <span className="text-xs text-gray-500">
             {trialDaysLeft} days left
+          </span>
+        </div>
+      );
+    }
+    
+    // Check if user has an active PAID subscription (not in trial)
+    if (user.subscribed && user.subscription_end && new Date(user.subscription_end) > now) {
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="default" className="bg-green-500">
+            Paid - {user.subscription_tier || 'Active'}
+          </Badge>
+          <span className="text-xs text-gray-500">
+            Until {formatDate(user.subscription_end)}
           </span>
         </div>
       );
