@@ -599,6 +599,11 @@ const WorkoutPlan = () => {
   const todayHasPlan = checkExistingPlanForToday();
   const isProfileComplete = checkProfileCompleteness();
 
+  const handleCompleteProfile = () => {
+    // Dispatch custom event to switch to profile tab
+    window.dispatchEvent(new CustomEvent('switch-to-profile'));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
