@@ -55,9 +55,8 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "http://localhost:3000";
     logStep("Creating checkout session with 30-day trial", { origin });
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
+    // Create session configuration based on whether customer exists
+    const sessionConfig: any = {
       line_items: [
         {
           price_data: {
@@ -84,11 +83,20 @@ serve(async (req) => {
       cancel_url: `${origin}/?subscription=cancelled`,
       allow_promotion_codes: true,
       billing_address_collection: "auto",
-      customer_update: {
+    };
+
+    // Only add customer-specific fields if customer exists
+    if (customerId) {
+      sessionConfig.customer = customerId;
+      sessionConfig.customer_update = {
         address: "auto",
         name: "auto"
-      },
-    });
+      };
+    } else {
+      sessionConfig.customer_email = user.email;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     logStep("Checkout session created with trial", { sessionId: session.id, url: session.url, trialDays: 30 });
 
