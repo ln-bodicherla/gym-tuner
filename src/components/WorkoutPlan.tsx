@@ -568,8 +568,8 @@ const WorkoutPlan = () => {
             hasAccess={true} 
             onUpgrade={handleUpgradeClick} 
             compact={true}
-            isInTrial={subscriptionInfo?.trialEnd ? new Date(subscriptionInfo.trialEnd) > new Date() : false}
-            trialDaysRemaining={subscriptionInfo?.trialEnd ? Math.max(0, Math.ceil((new Date(subscriptionInfo.trialEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0}
+            isInTrial={subscriptionInfo?.trial_end ? new Date(subscriptionInfo.trial_end) > new Date() : false}
+            trialDaysRemaining={subscriptionInfo?.trial_end ? Math.max(0, Math.ceil((new Date(subscriptionInfo.trial_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0}
           />
         )}
       </div>
