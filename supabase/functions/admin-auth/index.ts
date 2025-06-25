@@ -37,10 +37,7 @@ serve(async (req) => {
     let requestBody
     try {
       requestBody = await req.json()
-      console.log('[ADMIN-AUTH] Request body received:', { 
-        action: requestBody.action, 
-        email: requestBody.email ? 'present' : 'missing' 
-      })
+      console.log('[ADMIN-AUTH] Request parsed successfully')
     } catch (error) {
       console.error('[ADMIN-AUTH] Invalid JSON in request body:', error)
       return new Response(
@@ -63,7 +60,7 @@ serve(async (req) => {
 
       console.log(`[ADMIN-AUTH] Login attempt for: ${email}`)
       
-      // Check if admin user exists first
+      // First verify the admin user exists and get their details
       const { data: adminUser, error: adminError } = await supabase
         .from('admin_users')
         .select('id, email, full_name, password_hash, is_active')
@@ -81,21 +78,22 @@ serve(async (req) => {
 
       console.log('[ADMIN-AUTH] Admin user found, verifying password')
       
-      // Verify password using the database function
-      const { data: isValid, error: verifyError } = await supabase.rpc('verify_admin_password', {
-        input_email: email,
-        input_password: password
-      })
+      // Use direct password verification with crypt function
+      const { data: passwordValid, error: verifyError } = await supabase
+        .rpc('verify_password', {
+          password: password,
+          hash: adminUser.password_hash
+        })
 
       if (verifyError) {
         console.error('[ADMIN-AUTH] Password verification error:', verifyError)
         return new Response(
           JSON.stringify({ success: false, error: 'Authentication failed' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
       }
 
-      if (!isValid) {
+      if (!passwordValid) {
         console.log('[ADMIN-AUTH] Invalid password for:', email)
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
