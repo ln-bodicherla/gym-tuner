@@ -36,6 +36,7 @@ export const useAdminAuth = () => {
       });
 
       if (error || !data?.valid) {
+        console.log('Token verification failed:', error || 'Invalid token');
         localStorage.removeItem('admin_token');
         setAuthState({
           isAuthenticated: false,
@@ -63,6 +64,8 @@ export const useAdminAuth = () => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      console.log('Attempting login for:', email);
+      
       const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: { action: 'login', email, password }
       });
@@ -73,6 +76,7 @@ export const useAdminAuth = () => {
       }
 
       if (!data?.success) {
+        console.log('Login failed with data:', data);
         return { success: false, error: data?.error || 'Invalid credentials' };
       }
 

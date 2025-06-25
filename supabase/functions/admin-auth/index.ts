@@ -23,6 +23,9 @@ serve(async (req) => {
     if (action === 'login') {
       console.log('Login attempt for:', email)
       
+      // First, ensure admin_users table exists and has default admin
+      await ensureAdminSetup(supabaseClient)
+      
       // Check if admin user exists and is active
       const { data: adminUser, error: adminError } = await supabaseClient
         .from('admin_users')
@@ -47,8 +50,8 @@ serve(async (req) => {
         )
       }
 
-      // Verify password using crypt function
-      const { data: passwordCheck, error: passwordError } = await supabaseClient
+      // Verify password using our custom function
+      const { data: passwordValid, error: passwordError } = await supabaseClient
         .rpc('verify_admin_password', {
           input_email: email,
           input_password: password
@@ -56,36 +59,14 @@ serve(async (req) => {
 
       if (passwordError) {
         console.error('Password verification error:', passwordError)
-        // Fallback to direct password comparison using SQL
-        const { data: directCheck, error: directError } = await supabaseClient
-          .from('admin_users')
-          .select('password_hash')
-          .eq('email', email)
-          .single()
+        return new Response(
+          JSON.stringify({ success: false, error: 'Authentication failed' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        )
+      }
 
-        if (directError || !directCheck) {
-          return new Response(
-            JSON.stringify({ success: false, error: 'Invalid credentials' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-          )
-        }
-
-        // Use a simple verification as fallback
-        const { data: cryptCheck } = await supabaseClient
-          .rpc('verify_password', {
-            password: password,
-            hash: directCheck.password_hash
-          }).single()
-
-        if (!cryptCheck) {
-          console.log('Password verification failed')
-          return new Response(
-            JSON.stringify({ success: false, error: 'Invalid credentials' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-          )
-        }
-      } else if (!passwordCheck) {
-        console.log('Password check returned false')
+      if (!passwordValid) {
+        console.log('Password verification failed')
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid credentials' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -198,6 +179,38 @@ serve(async (req) => {
     )
   }
 })
+
+async function ensureAdminSetup(supabaseClient: any) {
+  try {
+    // Check if admin_users table exists and has any records
+    const { count } = await supabaseClient
+      .from('admin_users')
+      .select('*', { count: 'exact', head: true })
+
+    // If no admin users exist, create the default one
+    if (count === 0) {
+      console.log('No admin users found, creating default admin')
+      
+      // Create default admin with hashed password
+      const { error: insertError } = await supabaseClient
+        .from('admin_users')
+        .insert({
+          email: 'admin@gymtuner.com',
+          password_hash: crypt('GymTuner2025!Admin', gen_salt('bf')),
+          full_name: 'System Administrator',
+          is_active: true
+        })
+
+      if (insertError) {
+        console.error('Error creating default admin:', insertError)
+      } else {
+        console.log('Default admin created successfully')
+      }
+    }
+  } catch (error) {
+    console.error('Error in ensureAdminSetup:', error)
+  }
+}
 
 async function getAnalyticsData(supabaseClient: any) {
   try {
