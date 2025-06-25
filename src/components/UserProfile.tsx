@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,20 @@ const UserProfile = () => {
     }
   }, [user]);
 
+  const validatePhone = (phone: string): boolean => {
+    if (!phone.trim()) return true; // Allow empty phone
+    // Basic phone validation - allows various formats
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$|^[\+]?[(]?[1-9][\d\s\-\(\)]{7,15}$/;
+    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+  };
+
+  const validateLocation = (location: string): boolean => {
+    if (!location.trim()) return true; // Allow empty location
+    // Basic location validation - no special characters except comma, space, period
+    const locationRegex = /^[a-zA-Z0-9\s,.-]+$/;
+    return locationRegex.test(location) && location.length <= 100;
+  };
+
   const loadProfile = async () => {
     try {
       console.log('Loading profile for user:', user?.id);
@@ -62,6 +75,8 @@ const UserProfile = () => {
         setProfile(prev => ({
           ...prev,
           name: profileData.full_name || prev.name,
+          phone: profileData.phone || prev.phone,
+          location: profileData.location || prev.location,
           age: profileData.age?.toString() || "",
           weight: profileData.weight?.toString() || "",
           height: profileData.height || "",
@@ -92,6 +107,25 @@ const UserProfile = () => {
       return;
     }
 
+    // Validate phone and location before saving
+    if (!validatePhone(profile.phone)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateLocation(profile.location)) {
+      toast({
+        title: "Invalid Location",
+        description: "Location can only contain letters, numbers, spaces, commas, periods, and hyphens.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       console.log('Saving profile for user:', user.id);
       console.log('Profile data to save:', profile);
@@ -99,6 +133,8 @@ const UserProfile = () => {
       const profileData = {
         id: user.id,
         full_name: profile.name,
+        phone: profile.phone.trim() || null,
+        location: profile.location.trim() || null,
         age: profile.age ? parseInt(profile.age) : null,
         weight: profile.weight ? parseFloat(profile.weight) : null,
         height: profile.height || null,
@@ -347,13 +383,14 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Additional Info */}
+          {/* Additional Info - Phone and Location */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               {isEditing ? (
                 <Input
                   id="phone"
+                  placeholder="+1 (555) 123-4567"
                   value={profile.phone}
                   onChange={(e) => setProfile({...profile, phone: e.target.value})}
                 />
@@ -369,6 +406,7 @@ const UserProfile = () => {
               {isEditing ? (
                 <Input
                   id="location"
+                  placeholder="New York, NY"
                   value={profile.location}
                   onChange={(e) => setProfile({...profile, location: e.target.value})}
                 />
