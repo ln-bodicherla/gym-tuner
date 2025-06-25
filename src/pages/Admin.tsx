@@ -169,17 +169,58 @@ const Admin = () => {
   };
 
   const getSubscriptionStatus = (user: UserDetails) => {
-    if (user.subscribed) {
+    const now = new Date();
+    
+    // Check if user has an active paid subscription
+    if (user.subscribed && user.subscription_end && new Date(user.subscription_end) > now) {
       return (
-        <Badge variant="default" className="bg-green-500">
-          {user.subscription_tier || 'Active'}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge variant="default" className="bg-green-500">
+            Paid - {user.subscription_tier || 'Active'}
+          </Badge>
+          <span className="text-xs text-gray-500">
+            Until {formatDate(user.subscription_end)}
+          </span>
+        </div>
       );
     }
-    if (user.trial_end && new Date(user.trial_end) > new Date()) {
-      return <Badge variant="secondary">Trial</Badge>;
+    
+    // Check if user is in free trial period
+    if (user.trial_end && new Date(user.trial_end) > now) {
+      const trialDaysLeft = Math.ceil((new Date(user.trial_end).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            Free Trial
+          </Badge>
+          <span className="text-xs text-gray-500">
+            {trialDaysLeft} days left
+          </span>
+        </div>
+      );
     }
-    return <Badge variant="outline">Free</Badge>;
+    
+    // Check if user had a subscription but it expired
+    if (user.subscribed === false && (user.subscription_end || user.trial_end)) {
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="outline" className="border-orange-300 text-orange-600">
+            Expired
+          </Badge>
+          <span className="text-xs text-gray-500">
+            {user.subscription_end ? `Ended ${formatDate(user.subscription_end)}` : 
+             user.trial_end ? `Trial ended ${formatDate(user.trial_end)}` : ''}
+          </span>
+        </div>
+      );
+    }
+    
+    // User never had any subscription
+    return (
+      <Badge variant="outline" className="border-gray-300 text-gray-600">
+        Free User
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -390,7 +431,7 @@ const Admin = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  All Users
+                  All Users ({users.length})
                 </CardTitle>
                 <CardDescription>
                   Complete list of registered users with subscription and activity details
@@ -408,8 +449,7 @@ const Admin = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>User</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>Email Status</TableHead>
                           <TableHead>Subscription</TableHead>
                           <TableHead>Joined</TableHead>
                           <TableHead>Last Login</TableHead>
@@ -422,15 +462,15 @@ const Admin = () => {
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <User className="h-4 w-4 text-gray-400" />
-                                <span className="font-medium">
-                                  {user.full_name || 'Unknown'}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <Mail className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{user.email}</span>
+                                <div>
+                                  <div className="font-medium">
+                                    {user.full_name || 'Unknown'}
+                                  </div>
+                                  <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                    <Mail className="h-3 w-3" />
+                                    <span>{user.email}</span>
+                                  </div>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -439,7 +479,9 @@ const Admin = () => {
                                   Verified
                                 </Badge>
                               ) : (
-                                <Badge variant="outline">Unverified</Badge>
+                                <Badge variant="outline" className="border-red-300 text-red-600">
+                                  Unverified
+                                </Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -453,9 +495,21 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <div className="text-sm space-y-1">
-                                <div>Workouts: {user.total_workouts}</div>
-                                <div>Goals: {user.total_goals}</div>
-                                <div>Injuries: {user.total_injuries}</div>
+                                <div className="flex items-center gap-1">
+                                  <Activity className="h-3 w-3 text-gray-400" />
+                                  <span>{user.total_workouts} workouts</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <TrendingUp className="h-3 w-3 text-gray-400" />
+                                  <span>{user.total_goals} goals</span>
+                                </div>
+                                {user.total_injuries > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <Badge variant="outline" className="h-4 px-1 text-xs">
+                                      {user.total_injuries} injuries
+                                    </Badge>
+                                  </div>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
