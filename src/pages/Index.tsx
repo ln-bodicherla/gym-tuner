@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -68,9 +67,16 @@ const Index = () => {
       setActiveTab("subscription");
     };
 
+    const handleSwitchToProfile = (event: CustomEvent) => {
+      setActiveTab("profile");
+    };
+
     window.addEventListener('upgrade-to-pro' as any, handleUpgradeClick);
+    window.addEventListener('switch-to-profile' as any, handleSwitchToProfile);
+    
     return () => {
       window.removeEventListener('upgrade-to-pro' as any, handleUpgradeClick);
+      window.removeEventListener('switch-to-profile' as any, handleSwitchToProfile);
     };
   }, []);
 

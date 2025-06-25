@@ -15,6 +15,7 @@ import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useSubscription } from "@/hooks/useSubscription";
 import SubscriptionCard from "./SubscriptionCard";
 import LockedFeature from "./LockedFeature";
+import ProfileCompletionCheck from "./ProfileCompletionCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useForm } from "react-hook-form";
 
@@ -60,6 +61,8 @@ const WorkoutPlan = () => {
     goals: [],
     workouts: []
   });
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -77,8 +80,32 @@ const WorkoutPlan = () => {
     if (user) {
       loadWorkoutPlans();
       loadUserData();
+      loadUserProfile();
     }
   }, [user]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      setProfileLoading(true);
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading profile:', error);
+      } else {
+        setUserProfile(profileData);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const loadUserData = async () => {
     if (!user) return;
@@ -229,11 +256,31 @@ const WorkoutPlan = () => {
     }
   };
 
+  const checkProfileCompleteness = () => {
+    if (!userProfile) return false;
+
+    const requiredFields = ['full_name', 'age', 'fitness_level', 'max_workout_time', 'weekly_goal'];
+    return requiredFields.every(field => {
+      const value = userProfile[field];
+      return value !== null && value !== undefined && value !== '';
+    });
+  };
+
   const generateWorkout = async () => {
     if (!hasAccess()) {
       toast({
         title: "Subscription Required",
         description: "Please upgrade to Pro to generate AI workout plans.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if profile is complete
+    if (!checkProfileCompleteness()) {
+      toast({
+        title: "Profile Required",
+        description: "Please complete your profile before generating AI workout plans.",
         variant: "destructive",
       });
       return;
@@ -541,7 +588,7 @@ const WorkoutPlan = () => {
     window.dispatchEvent(new CustomEvent('upgrade-to-pro'));
   };
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -550,6 +597,7 @@ const WorkoutPlan = () => {
   }
 
   const todayHasPlan = checkExistingPlanForToday();
+  const isProfileComplete = checkProfileCompleteness();
 
   return (
     <div className="space-y-6">
@@ -630,73 +678,82 @@ const WorkoutPlan = () => {
                 onUpgrade={handleUpgradeClick}
               />
             ) : (
-              <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-lg">
-                      <Sparkles className="h-5 w-5 text-white" />
-                    </div>
-                    <span>Generate AI Workout</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Get a personalized workout plan powered by Gemini Flash 2.0 AI, based on your profile, goals, injuries, and workout history
-                  </CardDescription>
-                  {todayHasPlan && (
-                    <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <AlertCircle className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm text-amber-700">
-                        You already have a workout plan for today. Complete or delete it first.
-                      </span>
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Show user data status */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      AI Analysis Data:
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
-                      <div className="flex items-center">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Profile: {userData.profile ? 'Complete' : 'Basic'}
+              <>
+                {!isProfileComplete && (
+                  <ProfileCompletionCheck
+                    profile={userProfile}
+                    onCompleteProfile={handleCompleteProfile}
+                  />
+                )}
+                
+                <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-2 rounded-lg">
+                        <Sparkles className="h-5 w-5 text-white" />
                       </div>
-                      <div className="flex items-center">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Goals: {userData.goals.length} active
+                      <span>Generate AI Workout</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Get a personalized workout plan powered by Gemini Flash 2.0 AI, based on your profile, goals, injuries, and workout history
+                    </CardDescription>
+                    {todayHasPlan && (
+                      <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <span className="text-sm text-amber-700">
+                          You already have a workout plan for today. Complete or delete it first.
+                        </span>
                       </div>
-                      <div className="flex items-center">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Injuries: {userData.injuries.length} tracked
-                      </div>
-                      <div className="flex items-center">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Workouts: {userData.workouts.length} recent
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    onClick={generateWorkout} 
-                    disabled={isGenerating || todayHasPlan}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    size="lg"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Gemini AI is analyzing your data...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Generate AI Workout Plan
-                      </>
                     )}
-                  </Button>
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Show user data status */}
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        AI Analysis Data:
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
+                        <div className="flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Profile: {isProfileComplete ? 'Complete' : 'Incomplete'}
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Goals: {userData.goals.length} active
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Injuries: {userData.injuries.length} tracked
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Workouts: {userData.workouts.length} recent
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={generateWorkout} 
+                      disabled={isGenerating || todayHasPlan || !isProfileComplete}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      size="lg"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Gemini AI is analyzing your data...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate AI Workout Plan
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {!hasAccess() ? (
