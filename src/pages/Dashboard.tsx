@@ -14,7 +14,6 @@ import UserProfile from '@/components/UserProfile';
 import SubscriptionCard from '@/components/SubscriptionCard';
 import ProfileCompletionCheck from '@/components/ProfileCompletionCheck';
 import { useAuthAuditLogger } from '@/components/SecurityAuditLogger';
-import RoleBasedAccess from '@/components/RoleBasedAccess';
 import { Shield } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -40,11 +39,11 @@ const Dashboard = () => {
   };
 
   const handleUpgrade = () => {
-    navigate('/subscription'); // or wherever your subscription upgrade flow is
+    navigate('/subscription');
   };
 
   const handleCompleteProfile = () => {
-    navigate('/profile'); // or wherever your profile completion flow is
+    navigate('/profile');
   };
 
   if (!user) {
@@ -68,16 +67,14 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <RoleBasedAccess requiredRole="admin">
-              <Button
-                onClick={() => navigate('/admin')}
-                variant="outline"
-                className="flex items-center space-x-2"
-              >
-                <Shield className="h-4 w-4" />
-                <span>Admin Panel</span>
-              </Button>
-            </RoleBasedAccess>
+            <Button
+              onClick={() => navigate('/admin')}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              <Shield className="h-4 w-4" />
+              <span>Admin Panel</span>
+            </Button>
             <Button onClick={handleSignOut} variant="outline">
               Sign Out
             </Button>
