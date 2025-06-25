@@ -71,9 +71,14 @@ const SubscriptionCard = ({ hasAccess, onUpgrade, compact = false }: Subscriptio
           Subscribe Now
         </Button>
         
-        <p className="text-xs text-gray-500 text-center">
-          Cancel anytime
-        </p>
+        <div className="text-center space-y-2">
+          <p className="text-xs text-gray-500">
+            Cancel anytime
+          </p>
+          <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+            💰 Full refund within 7 days after purchase
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

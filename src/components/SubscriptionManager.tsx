@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Crown, Check, Zap, Star, TrendingUp, Calendar, Mail, AlertTriangle, Tar
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { PRO_FEATURES_WITH_ICONS } from "@/config/subscriptionFeatures";
+import { PRO_FEATURES } from "@/config/subscriptionFeatures";
 
 const SubscriptionManager = () => {
   const [loading, setLoading] = useState(false);
@@ -181,15 +180,13 @@ const SubscriptionManager = () => {
     }
   };
 
-  const proFeatures = [
-    { icon: Activity, text: "Unlimited AI-generated workout plans" },
-    { icon: TrendingUp, text: "Advanced progress analytics" },
-    { icon: Target, text: "Personalized goal tracking" },
-    { icon: Crown, text: "Priority support" },
-    { icon: BarChart3, text: "Advanced workout analytics" },
-    { icon: Star, text: "Personalized injury management" },
-    { icon: Zap, text: "Unlimited AI-powered suggestions" },
-  ];
+  const proFeatures = PRO_FEATURES.map((feature, index) => {
+    const icons = [Activity, TrendingUp, Target, Crown, BarChart3, Star, Zap];
+    return {
+      icon: icons[index] || Activity,
+      text: feature
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -359,9 +356,14 @@ const SubscriptionManager = () => {
               <Crown className="h-5 w-5 mr-2" />
               {loading ? "Processing..." : "Subscribe Now"}
             </Button>
-            <p className="text-xs text-gray-500">
-              Cancel anytime. No commitments.
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-gray-500">
+                Cancel anytime. No commitments.
+              </p>
+              <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                💰 Full refund within 7 days after purchase
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

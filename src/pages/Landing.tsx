@@ -52,10 +52,13 @@ const Landing = () => {
   ];
 
   const proFeatures = [
-    { icon: Star, text: "Unlimited AI workout plans" },
-    { icon: TrendingUp, text: "Advanced progress analytics" },
-    { icon: Target, text: "Personalized goal tracking" },
-    { icon: Crown, text: "Priority support" }
+    "Unlimited AI-generated workout plans",
+    "Advanced progress analytics", 
+    "Personalized goal tracking",
+    "Priority support",
+    "Advanced workout analytics",
+    "Personalized injury management",
+    "Unlimited AI-powered suggestions"
   ];
 
   return (
@@ -221,42 +224,24 @@ const Landing = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {proFeatures.map((feature, index) => {
-                    const Icon = feature.icon;
-                    return (
-                      <div key={index} className="flex items-center space-x-3">
-                        <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-1.5 rounded-lg">
-                          <Icon className="h-3 w-3 text-white" />
-                        </div>
-                        <span className="text-sm font-medium">{feature.text}</span>
-                        <Check className="h-4 w-4 text-green-500 ml-auto" />
-                      </div>
-                    );
-                  })}
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Advanced workout analytics</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Personalized injury management</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                    <span className="text-sm">Unlimited AI-powered suggestions</span>
-                  </div>
+                  {proFeatures.map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm font-medium">{feature}</span>
+                    </div>
+                  ))}
                 </div>
                 
                 <Link to="/auth" className="block">
                   <Button className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
                     <Crown className="h-4 w-4 mr-2" />
-                    Start Pro Trial
+                    Subscribe Now
                   </Button>
                 </Link>
                 
                 <div className="text-center space-y-2">
                   <p className="text-xs text-gray-500">
-                    Cancel anytime • 7-day free trial
+                    Cancel anytime • No commitments
                   </p>
                   <p className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
                     💰 Full refund within 7 days after purchase
