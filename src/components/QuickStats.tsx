@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Target, Activity, AlertTriangle, Heart, Clock, User, Weight, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 
 interface QuickStatsProps {
   className?: string;
@@ -12,6 +13,7 @@ interface QuickStatsProps {
 
 const QuickStats = ({ className }: QuickStatsProps) => {
   const { user } = useAuth();
+  const { lastUpdate } = useRealtimeDashboard();
   const [stats, setStats] = useState({
     weeklyGoal: 4,
     completedWorkouts: 0,
@@ -34,25 +36,34 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       loadStats();
       loadProfile();
     }
-  }, [user]);
+  }, [user, lastUpdate]); // Re-run when lastUpdate changes
 
   const loadProfile = async () => {
     if (!user) return;
 
     try {
-      const { data: profileData } = await supabase
+      console.log('Loading profile for user:', user.id);
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('max_workout_time, min_workout_time, age, weight, height, fitness_level, weekly_goal')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
 
       if (profileData) {
+        console.log('Profile loaded successfully:', profileData);
         setProfile(profileData);
         // Update stats with the actual weekly goal from profile
         setStats(prevStats => ({
           ...prevStats,
           weeklyGoal: profileData.weekly_goal || 4
         }));
+      } else {
+        console.log('No profile found for user');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -63,31 +74,51 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     if (!user) return;
 
     try {
+      console.log('Loading stats for user:', user.id);
+      
       // Get workouts from this week
       const startOfWeek = new Date();
       startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
 
-      const { data: weeklyWorkouts } = await supabase
+      const { data: weeklyWorkouts, error: workoutsError } = await supabase
         .from('workouts')
         .select('*')
         .eq('user_id', user.id)
         .gte('workout_date', startOfWeek.toISOString().split('T')[0]);
 
+      if (workoutsError) {
+        console.error('Error loading workouts:', workoutsError);
+      } else {
+        console.log('Weekly workouts loaded:', weeklyWorkouts?.length || 0);
+      }
+
       // Get active injuries
-      const { data: injuries } = await supabase
+      const { data: injuries, error: injuriesError } = await supabase
         .from('injuries')
         .select('*')
         .eq('user_id', user.id)
         .in('status', ['active', 'recovering']);
 
+      if (injuriesError) {
+        console.error('Error loading injuries:', injuriesError);
+      } else {
+        console.log('Active injuries loaded:', injuries?.length || 0);
+      }
+
       // Get recent workouts for streak calculation
-      const { data: recentWorkouts } = await supabase
+      const { data: recentWorkouts, error: recentError } = await supabase
         .from('workouts')
         .select('workout_date')
         .eq('user_id', user.id)
         .order('workout_date', { ascending: false })
         .limit(30);
+
+      if (recentError) {
+        console.error('Error loading recent workouts:', recentError);
+      } else {
+        console.log('Recent workouts for streak:', recentWorkouts?.length || 0);
+      }
 
       // Calculate streak
       let streak = 0;
@@ -109,6 +140,8 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         }
       }
 
+      console.log('Calculated streak:', streak);
+
       setStats(prevStats => ({
         ...prevStats,
         completedWorkouts: weeklyWorkouts?.length || 0,
@@ -121,6 +154,11 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       setLoading(false);
     }
   };
+
+  // Debug: Log when component re-renders due to real-time updates
+  useEffect(() => {
+    console.log('QuickStats updated due to real-time changes:', new Date(lastUpdate));
+  }, [lastUpdate]);
 
   if (loading) {
     return (

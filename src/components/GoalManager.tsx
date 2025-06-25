@@ -45,19 +45,25 @@ const GoalManager = () => {
     if (!user) return;
     
     try {
+      console.log('Fetching goals for user:', user.id);
       const { data, error } = await supabase
         .from('goals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching goals:', error);
+        throw error;
+      }
+      
+      console.log('Goals fetched successfully:', data?.length || 0);
       setGoals(data || []);
     } catch (error) {
       console.error('Error fetching goals:', error);
       toast({
         title: "Error",
-        description: "Failed to load goals",
+        description: "Failed to load goals. Please check your connection and try again.",
         variant: "destructive"
       });
     } finally {
@@ -91,11 +97,19 @@ const GoalManager = () => {
         unit: newGoal.unit || null
       };
 
-      const { error } = await supabase
+      console.log('Adding new goal:', goalData);
+      const { data, error } = await supabase
         .from('goals')
-        .insert(goalData);
+        .insert(goalData)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding goal:', error);
+        throw error;
+      }
+
+      console.log('Goal added successfully:', data);
 
       setNewGoal({
         title: "",
@@ -117,7 +131,7 @@ const GoalManager = () => {
       console.error('Error adding goal:', error);
       toast({
         title: "Error",
-        description: "Failed to add goal",
+        description: "Failed to add goal. Please try again.",
         variant: "destructive"
       });
     }
@@ -127,17 +141,26 @@ const GoalManager = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      console.log('Marking goal as achieved:', goalId);
+      const { data, error } = await supabase
         .from('goals')
         .update({
           status: 'achieved',
           achieved_date: new Date().toISOString().split('T')[0],
           updated_at: new Date().toISOString()
         })
-        .eq('id', goalId);
+        .eq('id', goalId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating goal:', error);
+        throw error;
+      }
 
+      console.log('Goal achieved successfully:', data);
+      
       const goal = goals.find(g => g.id === goalId);
       if (goal) {
         await logActivity('goal_updated', `Achieved goal: ${goal.title}`);
@@ -153,7 +176,7 @@ const GoalManager = () => {
       console.error('Error updating goal:', error);
       toast({
         title: "Error",
-        description: "Failed to update goal",
+        description: "Failed to update goal. Please try again.",
         variant: "destructive"
       });
     }
@@ -165,12 +188,19 @@ const GoalManager = () => {
     try {
       const goal = goals.find(g => g.id === goalId);
       
+      console.log('Deleting goal:', goalId);
       const { error } = await supabase
         .from('goals')
         .delete()
-        .eq('id', goalId);
+        .eq('id', goalId)
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting goal:', error);
+        throw error;
+      }
+
+      console.log('Goal deleted successfully');
 
       if (goal) {
         await logActivity('goal_deleted', `Deleted goal: ${goal.title}`);
@@ -186,7 +216,7 @@ const GoalManager = () => {
       console.error('Error removing goal:', error);
       toast({
         title: "Error",
-        description: "Failed to remove goal",
+        description: "Failed to remove goal. Please try again.",
         variant: "destructive"
       });
     }
@@ -196,15 +226,24 @@ const GoalManager = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      console.log('Updating goal progress:', goalId, currentValue);
+      const { data, error } = await supabase
         .from('goals')
         .update({
           current_value: currentValue,
           updated_at: new Date().toISOString()
         })
-        .eq('id', goalId);
+        .eq('id', goalId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating goal progress:', error);
+        throw error;
+      }
+
+      console.log('Goal progress updated successfully:', data);
 
       const goal = goals.find(g => g.id === goalId);
       if (goal) {
@@ -221,7 +260,7 @@ const GoalManager = () => {
       console.error('Error updating goal progress:', error);
       toast({
         title: "Error",
-        description: "Failed to update goal progress",
+        description: "Failed to update goal progress. Please try again.",
         variant: "destructive"
       });
     }

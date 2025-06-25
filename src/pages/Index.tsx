@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 
@@ -23,6 +25,7 @@ const Index = () => {
   const { signOut, user, loading: authLoading, session } = useAuth();
   const { subscriptionInfo, checkSubscriptionStatus, loading: subscriptionLoading, initialCheckComplete, hasAccess } = useSubscription();
   const { profile, loading: profileLoading } = useUserProfile();
+  const { lastUpdate } = useRealtimeDashboard(); // Add real-time updates
 
   // Redirect if not authenticated - double protection
   if (!authLoading && (!user || !session)) {
@@ -81,6 +84,13 @@ const Index = () => {
       window.removeEventListener('switch-to-profile' as any, handleSwitchToProfile);
     };
   }, []);
+
+  // Log real-time updates
+  useEffect(() => {
+    if (lastUpdate) {
+      console.log('Dashboard detected real-time update:', new Date(lastUpdate));
+    }
+  }, [lastUpdate]);
 
   const handleUpgrade = async () => {
     setActiveTab("subscription");
