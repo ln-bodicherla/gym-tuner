@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +48,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loginLoading, setLoginLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -101,17 +101,43 @@ const Admin = () => {
   };
 
   const loadAnalytics = async () => {
+    setAnalyticsLoading(true);
     try {
-      // Get basic analytics using simple queries
+      console.log('Loading analytics data...');
+      
+      // Get basic analytics using count queries
       const [usersRes, workoutsRes, goalsRes, injuriesRes, plansRes] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('workouts').select('id', { count: 'exact', head: true }),
-        supabase.from('goals').select('id', { count: 'exact', head: true }),
-        supabase.from('injuries').select('id', { count: 'exact', head: true }),
-        supabase.from('workout_plans').select('id', { count: 'exact', head: true })
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('workouts').select('*', { count: 'exact', head: true }),
+        supabase.from('goals').select('*', { count: 'exact', head: true }),
+        supabase.from('injuries').select('*', { count: 'exact', head: true }),
+        supabase.from('workout_plans').select('*', { count: 'exact', head: true })
       ]);
 
+      console.log('Analytics results:', {
+        users: usersRes.count,
+        workouts: workoutsRes.count,
+        goals: goalsRes.count,
+        injuries: injuriesRes.count,
+        plans: plansRes.count
+      });
+
+      // Check for errors
+      if (usersRes.error) console.error('Users query error:', usersRes.error);
+      if (workoutsRes.error) console.error('Workouts query error:', workoutsRes.error);
+      if (goalsRes.error) console.error('Goals query error:', goalsRes.error);
+      if (injuriesRes.error) console.error('Injuries query error:', injuriesRes.error);
+      if (plansRes.error) console.error('Plans query error:', plansRes.error);
+
       setAnalytics({
+        totalUsers: usersRes.count || 0,
+        totalWorkouts: workoutsRes.count || 0,
+        totalGoals: goalsRes.count || 0,
+        totalInjuries: injuriesRes.count || 0,
+        totalPlans: plansRes.count || 0,
+      });
+
+      console.log('Analytics set:', {
         totalUsers: usersRes.count || 0,
         totalWorkouts: workoutsRes.count || 0,
         totalGoals: goalsRes.count || 0,
@@ -125,18 +151,27 @@ const Admin = () => {
         description: "Failed to load analytics data",
         variant: "destructive",
       });
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
+      console.log('Loading users data...');
+      
       // Get users from profiles table and join with subscription data
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, created_at');
       
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+        throw profilesError;
+      }
+      
+      console.log('Loaded profiles:', profilesData?.length || 0);
       
       // Get subscription data
       const { data: subscriptionsData, error: subscriptionsError } = await supabase
@@ -146,6 +181,8 @@ const Admin = () => {
       if (subscriptionsError) {
         console.warn('Could not load subscription data:', subscriptionsError);
       }
+
+      console.log('Loaded subscriptions:', subscriptionsData?.length || 0);
 
       // Combine profile and subscription data
       const usersWithSubscriptions: UserWithSubscription[] = (profilesData || []).map(profile => {
@@ -172,6 +209,7 @@ const Admin = () => {
         };
       });
 
+      console.log('Final users with subscriptions:', usersWithSubscriptions.length);
       setUsers(usersWithSubscriptions);
     } catch (error) {
       console.error('Failed to load users:', error);
@@ -290,59 +328,66 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Registered users
-                  </p>
-                </CardContent>
-              </Card>
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2">Loading analytics...</span>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Registered users
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalWorkouts || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Logged workouts
-                  </p>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics?.totalWorkouts || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Logged workouts
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Goals</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalGoals || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Set goals
-                  </p>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Goals</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics?.totalGoals || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Set goals
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Workout Plans</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalPlans || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Created plans
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Workout Plans</CardTitle>
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics?.totalPlans || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Created plans
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <Card>
               <CardHeader>
