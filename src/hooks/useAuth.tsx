@@ -28,16 +28,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Only redirect if we have a valid session and user, and avoid loops
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out, redirecting to landing page');
+          // Force redirect to landing page after sign out
+          window.location.href = '/';
+        } else if (event === 'SIGNED_IN' && session?.user) {
           // Only redirect if currently on auth page
           if (window.location.pathname === '/auth') {
             window.location.href = '/dashboard';
-          }
-        } else if (event === 'SIGNED_OUT') {
-          // Only redirect to landing if not already there and not on auth page
-          if (window.location.pathname !== '/' && window.location.pathname !== '/auth') {
-            window.location.href = '/';
           }
         }
       }
@@ -87,6 +85,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state immediately
       setSession(null);
       setUser(null);
+      // Force redirect to landing page
+      window.location.href = '/';
     }
   };
 

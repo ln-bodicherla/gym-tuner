@@ -101,11 +101,11 @@ const Index = () => {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
       toast({
-        title: "Signed out successfully",
-        description: "See you next time!",
+        title: "Signing out...",
+        description: "Redirecting you to the landing page.",
       });
+      await signOut();
     } catch (error) {
       console.error('Error during sign out:', error);
       toast({
