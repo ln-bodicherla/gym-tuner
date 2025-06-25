@@ -6,6 +6,8 @@ import { Target, Activity, AlertTriangle, Heart, Clock, User, Weight, Ruler } fr
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
 
 interface QuickStatsProps {
   className?: string;
@@ -31,6 +33,35 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     weekly_goal: null
   });
   const [loading, setLoading] = useState(true);
+
+  // PST timezone constant
+  const PST_TIMEZONE = 'America/Los_Angeles';
+
+  // Helper function to get current PST date as string (YYYY-MM-DD)
+  const getCurrentPSTDateString = () => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    return format(pstDate, 'yyyy-MM-dd');
+  };
+
+  // Helper function to get start of week in PST
+  const getStartOfWeekPST = () => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    const startOfWeek = new Date(pstDate);
+    startOfWeek.setDate(pstDate.getDate() - pstDate.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    return format(startOfWeek, 'yyyy-MM-dd');
+  };
+
+  // Helper function to get date N days ago in PST
+  const getDaysAgoPST = (daysAgo: number) => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    const targetDate = new Date(pstDate);
+    targetDate.setDate(pstDate.getDate() - daysAgo);
+    return format(targetDate, 'yyyy-MM-dd');
+  };
 
   useEffect(() => {
     if (user) {
@@ -69,41 +100,40 @@ const QuickStats = ({ className }: QuickStatsProps) => {
   const calculateConsecutiveWorkoutStreak = (workouts: any[]) => {
     if (!workouts || workouts.length === 0) return 0;
 
-    // Sort workouts by date in descending order (most recent first)
-    const sortedWorkouts = workouts.sort((a, b) => 
-      new Date(b.workout_date).getTime() - new Date(a.workout_date).getTime()
+    // Get unique workout dates and sort them in descending order (most recent first)
+    const uniqueDates = [...new Set(workouts.map(w => w.workout_date))].sort((a, b) => 
+      new Date(b).getTime() - new Date(a).getTime()
     );
 
-    // Get unique workout dates
-    const uniqueDates = [...new Set(sortedWorkouts.map(w => w.workout_date))];
-    
+    console.log('Unique workout dates (sorted):', uniqueDates);
+
     let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayPST = getCurrentPSTDateString();
+    const yesterdayPST = getDaysAgoPST(1);
+    
+    console.log('Today PST:', todayPST, 'Yesterday PST:', yesterdayPST);
 
     // Check if there's a workout today or yesterday to start counting
-    const mostRecentDate = new Date(uniqueDates[0]);
-    mostRecentDate.setHours(0, 0, 0, 0);
+    const mostRecentDate = uniqueDates[0];
     
-    const daysDifference = Math.floor((today.getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // If the most recent workout is more than 1 day ago, streak is broken
-    if (daysDifference > 1) {
-      console.log('Streak broken - most recent workout was', daysDifference, 'days ago');
+    // If the most recent workout is neither today nor yesterday, streak is broken
+    if (mostRecentDate !== todayPST && mostRecentDate !== yesterdayPST) {
+      console.log('Streak broken - most recent workout was on', mostRecentDate, 'but today is', todayPST);
       return 0;
     }
 
     // Start from the most recent workout date and count backwards
-    let currentDate = new Date(mostRecentDate);
+    let expectedDate = mostRecentDate;
     
-    for (const dateStr of uniqueDates) {
-      const workoutDate = new Date(dateStr);
-      workoutDate.setHours(0, 0, 0, 0);
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const workoutDate = uniqueDates[i];
       
-      if (workoutDate.getTime() === currentDate.getTime()) {
+      if (workoutDate === expectedDate) {
         streak++;
         // Move to the previous day
+        const currentDate = new Date(expectedDate);
         currentDate.setDate(currentDate.getDate() - 1);
+        expectedDate = format(currentDate, 'yyyy-MM-dd');
       } else {
         // Gap found, streak ends
         break;
@@ -120,16 +150,15 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     try {
       console.log('Loading stats for user:', user.id);
       
-      // Get workouts from this week
-      const startOfWeek = new Date();
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+      // Get workouts from this week (PST)
+      const startOfWeekPST = getStartOfWeekPST();
+      console.log('Start of week PST:', startOfWeekPST);
 
       const { data: weeklyWorkouts, error: workoutsError } = await supabase
         .from('workouts')
         .select('*')
         .eq('user_id', user.id)
-        .gte('workout_date', startOfWeek.toISOString().split('T')[0]);
+        .gte('workout_date', startOfWeekPST);
 
       if (workoutsError) {
         console.error('Error loading workouts:', workoutsError);
@@ -137,15 +166,15 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Weekly workouts loaded:', weeklyWorkouts?.length || 0);
       }
 
-      // Get all workouts for streak calculation (last 60 days to be thorough)
-      const sixtyDaysAgo = new Date();
-      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      // Get all workouts for streak calculation (last 60 days from PST perspective)
+      const sixtyDaysAgoPST = getDaysAgoPST(60);
+      console.log('Sixty days ago PST:', sixtyDaysAgoPST);
 
       const { data: allWorkouts, error: allWorkoutsError } = await supabase
         .from('workouts')
         .select('workout_date')
         .eq('user_id', user.id)
-        .gte('workout_date', sixtyDaysAgo.toISOString().split('T')[0])
+        .gte('workout_date', sixtyDaysAgoPST)
         .order('workout_date', { ascending: false });
 
       if (allWorkoutsError) {

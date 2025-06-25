@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityLogger } from "@/hooks/useActivityLogger";
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
 
 interface Workout {
   id: string;
@@ -34,10 +36,29 @@ const WorkoutTracker = () => {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('today');
+
+  // PST timezone constant
+  const PST_TIMEZONE = 'America/Los_Angeles';
+
+  // Helper function to get current PST date as string (YYYY-MM-DD)
+  const getCurrentPSTDateString = () => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    return format(pstDate, 'yyyy-MM-dd');
+  };
+
+  // Helper function to get date N days ago in PST
+  const getDaysAgoPST = (daysAgo: number) => {
+    const now = new Date();
+    const pstDate = toZonedTime(now, PST_TIMEZONE);
+    const targetDate = new Date(pstDate);
+    targetDate.setDate(pstDate.getDate() - daysAgo);
+    return format(targetDate, 'yyyy-MM-dd');
+  };
   
   const [newWorkout, setNewWorkout] = useState({
     name: "",
-    workout_date: new Date().toISOString().split('T')[0],
+    workout_date: getCurrentPSTDateString(),
     start_time: "",
     duration_minutes: "",
     notes: "",
@@ -77,24 +98,20 @@ const WorkoutTracker = () => {
     loadWorkouts();
   }, [user]);
 
-  // Filter workouts based on selected filter
+  // Filter workouts based on selected filter using PST dates
   const filteredWorkouts = workouts.filter(workout => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const workoutDate = new Date(workout.workout_date);
-    workoutDate.setHours(0, 0, 0, 0);
+    const todayPST = getCurrentPSTDateString();
+    const workoutDate = workout.workout_date;
 
     switch (filter) {
       case 'today':
-        return workoutDate.getTime() === today.getTime();
+        return workoutDate === todayPST;
       case '7days':
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6);
-        return workoutDate.getTime() >= sevenDaysAgo.getTime() && workoutDate.getTime() <= today.getTime();
+        const sevenDaysAgoPST = getDaysAgoPST(6);
+        return workoutDate >= sevenDaysAgoPST && workoutDate <= todayPST;
       case '30days':
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 29);
-        return workoutDate.getTime() >= thirtyDaysAgo.getTime() && workoutDate.getTime() <= today.getTime();
+        const thirtyDaysAgoPST = getDaysAgoPST(29);
+        return workoutDate >= thirtyDaysAgoPST && workoutDate <= todayPST;
       default:
         return true;
     }
@@ -145,7 +162,7 @@ const WorkoutTracker = () => {
 
       setNewWorkout({
         name: "",
-        workout_date: new Date().toISOString().split('T')[0],
+        workout_date: getCurrentPSTDateString(),
         start_time: "",
         duration_minutes: "",
         notes: "",
