@@ -18,7 +18,8 @@ const QuickStats = ({ className }: QuickStatsProps) => {
     weeklyGoal: 4,
     completedWorkouts: 0,
     activeInjuries: 0,
-    currentStreak: 0
+    currentStreak: 0,
+    achievedGoalsCount: 0
   });
   const [profile, setProfile] = useState({
     max_workout_time: null,
@@ -36,7 +37,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       loadStats();
       loadProfile();
     }
-  }, [user, lastUpdate]); // Re-run when lastUpdate changes
+  }, [user, lastUpdate]);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -57,17 +58,60 @@ const QuickStats = ({ className }: QuickStatsProps) => {
       if (profileData) {
         console.log('Profile loaded successfully:', profileData);
         setProfile(profileData);
-        // Update stats with the actual weekly goal from profile
-        setStats(prevStats => ({
-          ...prevStats,
-          weeklyGoal: profileData.weekly_goal || 4
-        }));
       } else {
         console.log('No profile found for user');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
     }
+  };
+
+  const calculateConsecutiveWorkoutStreak = (workouts: any[]) => {
+    if (!workouts || workouts.length === 0) return 0;
+
+    // Sort workouts by date in descending order (most recent first)
+    const sortedWorkouts = workouts.sort((a, b) => 
+      new Date(b.workout_date).getTime() - new Date(a.workout_date).getTime()
+    );
+
+    // Get unique workout dates
+    const uniqueDates = [...new Set(sortedWorkouts.map(w => w.workout_date))];
+    
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if there's a workout today or yesterday to start counting
+    const mostRecentDate = new Date(uniqueDates[0]);
+    mostRecentDate.setHours(0, 0, 0, 0);
+    
+    const daysDifference = Math.floor((today.getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If the most recent workout is more than 1 day ago, streak is broken
+    if (daysDifference > 1) {
+      console.log('Streak broken - most recent workout was', daysDifference, 'days ago');
+      return 0;
+    }
+
+    // Start from the most recent workout date and count backwards
+    let currentDate = new Date(mostRecentDate);
+    
+    for (const dateStr of uniqueDates) {
+      const workoutDate = new Date(dateStr);
+      workoutDate.setHours(0, 0, 0, 0);
+      
+      if (workoutDate.getTime() === currentDate.getTime()) {
+        streak++;
+        // Move to the previous day
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        // Gap found, streak ends
+        break;
+      }
+    }
+
+    console.log('Calculated consecutive workout streak:', streak, 'days');
+    return streak;
   };
 
   const loadStats = async () => {
@@ -93,6 +137,23 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Weekly workouts loaded:', weeklyWorkouts?.length || 0);
       }
 
+      // Get all workouts for streak calculation (last 60 days to be thorough)
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      const { data: allWorkouts, error: allWorkoutsError } = await supabase
+        .from('workouts')
+        .select('workout_date')
+        .eq('user_id', user.id)
+        .gte('workout_date', sixtyDaysAgo.toISOString().split('T')[0])
+        .order('workout_date', { ascending: false });
+
+      if (allWorkoutsError) {
+        console.error('Error loading all workouts for streak:', allWorkoutsError);
+      } else {
+        console.log('All workouts loaded for streak calculation:', allWorkouts?.length || 0);
+      }
+
       // Get active injuries
       const { data: injuries, error: injuriesError } = await supabase
         .from('injuries')
@@ -106,48 +167,42 @@ const QuickStats = ({ className }: QuickStatsProps) => {
         console.log('Active injuries loaded:', injuries?.length || 0);
       }
 
-      // Get recent workouts for streak calculation
-      const { data: recentWorkouts, error: recentError } = await supabase
-        .from('workouts')
-        .select('workout_date')
+      // Get achieved goals count
+      const { data: achievedGoals, error: goalsError } = await supabase
+        .from('goals')
+        .select('*')
         .eq('user_id', user.id)
-        .order('workout_date', { ascending: false })
-        .limit(30);
+        .eq('status', 'achieved');
 
-      if (recentError) {
-        console.error('Error loading recent workouts:', recentError);
+      if (goalsError) {
+        console.error('Error loading achieved goals:', goalsError);
       } else {
-        console.log('Recent workouts for streak:', recentWorkouts?.length || 0);
+        console.log('Achieved goals loaded:', achievedGoals?.length || 0);
       }
 
-      // Calculate streak
-      let streak = 0;
-      if (recentWorkouts && recentWorkouts.length > 0) {
-        const today = new Date();
-        let currentDate = new Date(today);
-        
-        for (let i = 0; i < 30; i++) {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          const hasWorkout = recentWorkouts.some(w => w.workout_date === dateStr);
-          
-          if (hasWorkout) {
-            streak++;
-          } else if (streak > 0) {
-            break;
-          }
-          
-          currentDate.setDate(currentDate.getDate() - 1);
-        }
-      }
+      // Calculate streak from consecutive workout days
+      const streak = calculateConsecutiveWorkoutStreak(allWorkouts || []);
 
-      console.log('Calculated streak:', streak);
+      // Calculate dynamic weekly goal based on achieved goals
+      const baseWeeklyGoal = profile?.weekly_goal || 4;
+      const achievedGoalsCount = achievedGoals?.length || 0;
+      const dynamicWeeklyGoal = Math.max(baseWeeklyGoal + Math.floor(achievedGoalsCount / 2), baseWeeklyGoal);
 
-      setStats(prevStats => ({
-        ...prevStats,
+      console.log('Stats calculated:', {
+        weeklyWorkouts: weeklyWorkouts?.length || 0,
+        activeInjuries: injuries?.length || 0,
+        streak,
+        achievedGoalsCount,
+        dynamicWeeklyGoal
+      });
+
+      setStats({
+        weeklyGoal: dynamicWeeklyGoal,
         completedWorkouts: weeklyWorkouts?.length || 0,
         activeInjuries: injuries?.length || 0,
-        currentStreak: streak
-      }));
+        currentStreak: streak,
+        achievedGoalsCount
+      });
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -182,6 +237,9 @@ const QuickStats = ({ className }: QuickStatsProps) => {
             <div>
               <p className="text-xs sm:text-sm font-medium text-blue-600">Weekly Goal</p>
               <p className="text-lg sm:text-2xl font-bold text-blue-900">{stats.completedWorkouts}/{stats.weeklyGoal}</p>
+              {stats.achievedGoalsCount > 0 && (
+                <p className="text-xs text-blue-500">+{Math.floor(stats.achievedGoalsCount / 2)} from goals</p>
+              )}
             </div>
             <div className="bg-blue-500 p-2 sm:p-3 rounded-full">
               <Target className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
@@ -197,6 +255,7 @@ const QuickStats = ({ className }: QuickStatsProps) => {
             <div>
               <p className="text-xs sm:text-sm font-medium text-green-600">Current Streak</p>
               <p className="text-lg sm:text-2xl font-bold text-green-900">{stats.currentStreak} days</p>
+              <p className="text-xs text-green-500">Consecutive workout days</p>
             </div>
             <div className="bg-green-500 p-2 sm:p-3 rounded-full">
               <Activity className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
