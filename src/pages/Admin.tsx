@@ -241,7 +241,11 @@ const Admin = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <Shield className="h-12 w-12 text-blue-600" />
+              <img 
+                src="/lovable-uploads/af2e857a-423f-4dd0-8bc6-416e6b7a0561.png" 
+                alt="Gym Tuner Logo" 
+                className="h-16 w-16"
+              />
             </div>
             <CardTitle className="text-2xl">Admin Access</CardTitle>
             <CardDescription>
@@ -288,7 +292,11 @@ const Admin = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Shield className="h-8 w-8 text-blue-600" />
+              <img 
+                src="/lovable-uploads/af2e857a-423f-4dd0-8bc6-416e6b7a0561.png" 
+                alt="Gym Tuner Logo" 
+                className="h-8 w-8"
+              />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
                 <p className="text-sm text-gray-600">Gym Tuner Analytics & Management</p>

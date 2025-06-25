@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -79,9 +78,11 @@ const PasswordReset = () => {
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-orange-500 p-3 rounded-lg">
-                <Activity className="h-8 w-8 text-white" />
-              </div>
+              <img 
+                src="/lovable-uploads/af2e857a-423f-4dd0-8bc6-416e6b7a0561.png" 
+                alt="Gym Tuner Logo" 
+                className="h-16 w-16"
+              />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">Set New Password</CardTitle>
             <CardDescription>Enter your new password below</CardDescription>

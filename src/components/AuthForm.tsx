@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Activity, ArrowLeft, Mail } from 'lucide-react';
+import { ArrowLeft, Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -143,9 +143,11 @@ const AuthForm = () => {
           <Card>
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="bg-gradient-to-r from-blue-600 to-orange-500 p-3 rounded-lg">
-                  <Activity className="h-8 w-8 text-white" />
-                </div>
+                <img 
+                  src="/lovable-uploads/af2e857a-423f-4dd0-8bc6-416e6b7a0561.png" 
+                  alt="Gym Tuner Logo" 
+                  className="h-16 w-16"
+                />
               </div>
               <CardTitle className="text-2xl font-bold text-gray-900">Reset Password</CardTitle>
               <CardDescription>Enter your email to receive a password reset link</CardDescription>
@@ -196,9 +198,11 @@ const AuthForm = () => {
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-orange-500 p-3 rounded-lg">
-                <Activity className="h-8 w-8 text-white" />
-              </div>
+              <img 
+                src="/lovable-uploads/af2e857a-423f-4dd0-8bc6-416e6b7a0561.png" 
+                alt="Gym Tuner Logo" 
+                className="h-16 w-16"
+              />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">Gym Tuner</CardTitle>
             <CardDescription>Smart Workout Planning</CardDescription>
