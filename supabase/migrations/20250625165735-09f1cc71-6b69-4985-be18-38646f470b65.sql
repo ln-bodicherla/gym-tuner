@@ -29,7 +29,10 @@ VALUES (
   crypt('GymTuner2025!Admin', gen_salt('bf')),
   'System Administrator',
   true
-);
+)
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = crypt('GymTuner2025!Admin', gen_salt('bf')),
+  updated_at = now();
 
 -- Enable Row Level Security (optional - since this is admin-only)
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
