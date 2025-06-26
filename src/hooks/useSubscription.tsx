@@ -71,20 +71,23 @@ export const useSubscription = () => {
             console.error('Local database query error:', basicError);
             setSubscriptionInfo({ subscribed: false, trial_used: false });
           } else if (basicData) {
-            // Try to get the new columns separately
-            const { data: extendedData } = await supabase
+            // Try to get the new columns separately - handle potential errors gracefully
+            const { data: extendedData, error: extendedError } = await supabase
               .from('subscribers')
               .select('trial_used, cancelled_but_active')
               .eq('user_id', user.id)
               .single();
+            
+            // If extended query fails, just use defaults for the new columns
+            const finalExtendedData = extendedError ? { trial_used: false, cancelled_but_active: false } : extendedData;
             
             setSubscriptionInfo({
               subscribed: basicData.subscribed || false,
               subscription_tier: basicData.subscription_tier || undefined,
               subscription_end: basicData.subscription_end || undefined,
               trial_end: basicData.trial_end || undefined,
-              trial_used: extendedData?.trial_used || false,
-              cancelled_but_active: extendedData?.cancelled_but_active || false,
+              trial_used: finalExtendedData?.trial_used || false,
+              cancelled_but_active: finalExtendedData?.cancelled_but_active || false,
             });
           } else {
             setSubscriptionInfo({ subscribed: false, trial_used: false });
