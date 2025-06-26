@@ -60,23 +60,31 @@ export const useSubscription = () => {
         console.error('Error checking subscription:', error);
         // Fallback to checking local database
         try {
-          const { data: localData, error: localError } = await supabase
+          // Try to query without the new columns first
+          const { data: basicData, error: basicError } = await supabase
             .from('subscribers')
-            .select('subscribed, subscription_tier, subscription_end, trial_end, trial_used, cancelled_but_active')
+            .select('subscribed, subscription_tier, subscription_end, trial_end')
             .eq('user_id', user.id)
             .single();
           
-          if (localError) {
-            console.error('Local database query error:', localError);
+          if (basicError) {
+            console.error('Local database query error:', basicError);
             setSubscriptionInfo({ subscribed: false, trial_used: false });
-          } else if (localData) {
+          } else if (basicData) {
+            // Try to get the new columns separately
+            const { data: extendedData } = await supabase
+              .from('subscribers')
+              .select('trial_used, cancelled_but_active')
+              .eq('user_id', user.id)
+              .single();
+            
             setSubscriptionInfo({
-              subscribed: localData.subscribed || false,
-              subscription_tier: localData.subscription_tier || undefined,
-              subscription_end: localData.subscription_end || undefined,
-              trial_end: localData.trial_end || undefined,
-              trial_used: localData.trial_used || false,
-              cancelled_but_active: localData.cancelled_but_active || false,
+              subscribed: basicData.subscribed || false,
+              subscription_tier: basicData.subscription_tier || undefined,
+              subscription_end: basicData.subscription_end || undefined,
+              trial_end: basicData.trial_end || undefined,
+              trial_used: extendedData?.trial_used || false,
+              cancelled_but_active: extendedData?.cancelled_but_active || false,
             });
           } else {
             setSubscriptionInfo({ subscribed: false, trial_used: false });
