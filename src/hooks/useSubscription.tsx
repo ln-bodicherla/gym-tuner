@@ -59,15 +59,30 @@ export const useSubscription = () => {
       if (error) {
         console.error('Error checking subscription:', error);
         // Fallback to checking local database
-        const { data: localData } = await supabase
-          .from('subscribers')
-          .select('subscribed, subscription_tier, subscription_end, trial_end, trial_used, cancelled_but_active')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (localData) {
-          setSubscriptionInfo(localData);
-        } else {
+        try {
+          const { data: localData, error: localError } = await supabase
+            .from('subscribers')
+            .select('subscribed, subscription_tier, subscription_end, trial_end, trial_used, cancelled_but_active')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (localError) {
+            console.error('Local database query error:', localError);
+            setSubscriptionInfo({ subscribed: false, trial_used: false });
+          } else if (localData) {
+            setSubscriptionInfo({
+              subscribed: localData.subscribed || false,
+              subscription_tier: localData.subscription_tier || undefined,
+              subscription_end: localData.subscription_end || undefined,
+              trial_end: localData.trial_end || undefined,
+              trial_used: localData.trial_used || false,
+              cancelled_but_active: localData.cancelled_but_active || false,
+            });
+          } else {
+            setSubscriptionInfo({ subscribed: false, trial_used: false });
+          }
+        } catch (dbError) {
+          console.error('Database fallback error:', dbError);
           setSubscriptionInfo({ subscribed: false, trial_used: false });
         }
         return;
