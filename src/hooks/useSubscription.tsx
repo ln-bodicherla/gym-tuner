@@ -8,6 +8,7 @@ interface SubscriptionInfo {
   subscription_tier?: string;
   subscription_end?: string;
   trial_end?: string;
+  cancelled_but_active?: boolean;
 }
 
 export const useSubscription = () => {
@@ -91,6 +92,10 @@ export const useSubscription = () => {
     return new Date(subscriptionInfo.trial_end) > new Date();
   };
 
+  const isCancelledButActive = () => {
+    return subscriptionInfo?.cancelled_but_active || false;
+  };
+
   const getTrialDaysRemaining = () => {
     if (!subscriptionInfo?.trial_end) return 0;
     const trialEndDate = new Date(subscriptionInfo.trial_end);
@@ -107,6 +112,7 @@ export const useSubscription = () => {
     checkSubscriptionStatus,
     hasAccess,
     isInTrial,
+    isCancelledButActive,
     getTrialDaysRemaining,
   };
 };

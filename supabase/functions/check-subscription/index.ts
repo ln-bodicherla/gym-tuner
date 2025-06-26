@@ -76,19 +76,30 @@ serve(async (req) => {
     
     logStep("Retrieved subscriptions", { 
       count: subscriptions.data.length, 
-      statuses: subscriptions.data.map(s => ({ id: s.id, status: s.status }))
+      statuses: subscriptions.data.map(s => ({ id: s.id, status: s.status, cancelAtPeriodEnd: s.cancel_at_period_end }))
     });
 
     let hasAccess = false;
     let subscriptionTier = null;
     let subscriptionEnd = null;
     let trialEnd = null;
+    let cancelledButActive = false;
 
     // Check for active subscriptions or trials
     for (const subscription of subscriptions.data) {
       if (subscription.status === "active" || subscription.status === "trialing") {
         hasAccess = true;
         subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        
+        // Check if subscription is cancelled but still active
+        if (subscription.cancel_at_period_end) {
+          cancelledButActive = true;
+          logStep("Subscription is cancelled but still active until period end", {
+            subscriptionId: subscription.id,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            currentPeriodEnd: subscriptionEnd
+          });
+        }
         
         // Check if currently in trial
         if (subscription.trial_end && subscription.trial_end > Math.floor(Date.now() / 1000)) {
@@ -103,7 +114,8 @@ serve(async (req) => {
           logStep("Active subscription found", { 
             subscriptionId: subscription.id, 
             status: subscription.status,
-            endDate: subscriptionEnd 
+            endDate: subscriptionEnd,
+            cancelledButActive: cancelledButActive
           });
         }
 
@@ -141,14 +153,16 @@ serve(async (req) => {
     logStep("Updated database with subscription info", { 
       subscribed: hasAccess, 
       subscriptionTier,
-      trialEnd: trialEnd ? "Yes" : "No"
+      trialEnd: trialEnd ? "Yes" : "No",
+      cancelledButActive: cancelledButActive
     });
     
     return new Response(JSON.stringify({
       subscribed: hasAccess,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      trial_end: trialEnd
+      trial_end: trialEnd,
+      cancelled_but_active: cancelledButActive
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

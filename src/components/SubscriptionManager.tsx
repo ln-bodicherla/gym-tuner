@@ -15,7 +15,7 @@ const SubscriptionManager = () => {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
-  const { subscriptionInfo, checkSubscriptionStatus, isInTrial, getTrialDaysRemaining } = useSubscription();
+  const { subscriptionInfo, checkSubscriptionStatus, isInTrial, isCancelledButActive, getTrialDaysRemaining } = useSubscription();
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -191,15 +191,20 @@ const SubscriptionManager = () => {
 
   const trialDaysRemaining = getTrialDaysRemaining();
   const inTrial = isInTrial();
+  const cancelledButActive = isCancelledButActive();
 
   return (
     <div className="space-y-6">
       {/* Current Subscription Status */}
-      <Card className={subscriptionInfo?.subscribed ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50" : ""}>
+      <Card className={subscriptionInfo?.subscribed ? 
+        cancelledButActive ? "border-orange-200 bg-gradient-to-r from-orange-50 to-red-50" : 
+        "border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50" : ""}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className={`p-2 rounded-lg ${subscriptionInfo?.subscribed ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-gray-100'}`}>
+              <div className={`p-2 rounded-lg ${subscriptionInfo?.subscribed ? 
+                cancelledButActive ? 'bg-gradient-to-r from-orange-400 to-red-500' :
+                'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-gray-100'}`}>
                 <Crown className={`h-5 w-5 ${subscriptionInfo?.subscribed ? 'text-white' : 'text-gray-500'}`} />
               </div>
               <div>
@@ -208,9 +213,11 @@ const SubscriptionManager = () => {
                 </CardTitle>
                 <CardDescription>
                   {subscriptionInfo?.subscribed 
-                    ? inTrial 
-                      ? `${trialDaysRemaining} days left in your free trial`
-                      : 'You have full access to all premium features' 
+                    ? cancelledButActive
+                      ? 'Your subscription is cancelled but remains active until the end of your billing period'
+                      : inTrial 
+                        ? `${trialDaysRemaining} days left in your free trial`
+                        : 'You have full access to all premium features'
                     : 'Start your 30-day free trial to unlock all features'
                   }
                 </CardDescription>
@@ -223,8 +230,15 @@ const SubscriptionManager = () => {
                   Trial
                 </Badge>
               )}
-              <Badge variant={subscriptionInfo?.subscribed ? "default" : "secondary"} className={subscriptionInfo?.subscribed && !inTrial ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-white" : ""}>
-                {subscriptionInfo?.subscribed ? (inTrial ? 'Trial' : 'Pro') : 'Free'}
+              {cancelledButActive && (
+                <Badge variant="destructive" className="bg-red-100 text-red-800">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  Cancelled
+                </Badge>
+              )}
+              <Badge variant={subscriptionInfo?.subscribed ? "default" : "secondary"} className={subscriptionInfo?.subscribed && !inTrial && !cancelledButActive ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-white" : ""}>
+                {subscriptionInfo?.subscribed ? 
+                  (cancelledButActive ? 'Cancelled' : inTrial ? 'Trial' : 'Pro') : 'Free'}
               </Badge>
             </div>
           </div>
@@ -235,8 +249,9 @@ const SubscriptionManager = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-600">Status</p>
-                  <p className="font-medium text-green-600">
-                    {inTrial ? `Trial (${trialDaysRemaining} days left)` : 'Active'}
+                  <p className={`font-medium ${cancelledButActive ? 'text-red-600' : 'text-green-600'}`}>
+                    {cancelledButActive ? 'Cancelled (Active until period end)' :
+                     inTrial ? `Trial (${trialDaysRemaining} days left)` : 'Active'}
                   </p>
                 </div>
                 <div>
@@ -248,7 +263,8 @@ const SubscriptionManager = () => {
                 {subscriptionInfo.subscription_end && (
                   <div className="sm:col-span-2">
                     <p className="text-gray-600">
-                      {inTrial ? 'Trial ends / First billing date' : 'Next billing date'}
+                      {cancelledButActive ? 'Access ends on' :
+                       inTrial ? 'Trial ends / First billing date' : 'Next billing date'}
                     </p>
                     <p className="font-medium">{new Date(subscriptionInfo.subscription_end).toLocaleDateString()}</p>
                   </div>
@@ -263,44 +279,46 @@ const SubscriptionManager = () => {
                 >
                   {loading ? "Loading..." : "Manage Subscription"}
                 </Button>
-                <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      Cancel Subscription
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center space-x-2">
-                        <AlertTriangle className="h-5 w-5 text-red-500" />
-                        <span>Cancel Subscription</span>
-                      </DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to cancel your Gym Tuner Pro subscription? 
-                        You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex justify-end space-x-2 mt-4">
+                {!cancelledButActive && (
+                  <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                    <DialogTrigger asChild>
                       <Button 
-                        variant="outline" 
-                        onClick={() => setShowCancelDialog(false)}
-                        disabled={cancellingSubscription}
+                        variant="outline"
+                        className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        Keep Subscription
+                        Cancel Subscription
                       </Button>
-                      <Button 
-                        variant="destructive" 
-                        onClick={handleCancelSubscription}
-                        disabled={cancellingSubscription}
-                      >
-                        {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center space-x-2">
+                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                          <span>Cancel Subscription</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to cancel your Gym Tuner Pro subscription? 
+                          You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end space-x-2 mt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowCancelDialog(false)}
+                          disabled={cancellingSubscription}
+                        >
+                          Keep Subscription
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={handleCancelSubscription}
+                          disabled={cancellingSubscription}
+                        >
+                          {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </div>
           ) : (
