@@ -15,7 +15,7 @@ const SubscriptionManager = () => {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
-  const { subscriptionInfo, checkSubscriptionStatus, isInTrial, isCancelledButActive, getTrialDaysRemaining } = useSubscription();
+  const { subscriptionInfo, checkSubscriptionStatus, isInTrial, isCancelledButActive, hasUsedTrial, getTrialDaysRemaining } = useSubscription();
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -92,10 +92,11 @@ const SubscriptionManager = () => {
 
       if (error) {
         console.error('Portal error:', error);
+        // If portal fails, show a helpful message instead of an error
         toast({
-          title: "Error",
-          description: error.message || "Failed to open customer portal. Please try again.",
-          variant: "destructive",
+          title: "Portal Unavailable",
+          description: "The customer portal is temporarily unavailable. Please contact support or use the resubscribe option below.",
+          variant: "default",
         });
         setLoading(false);
         return;
@@ -105,18 +106,18 @@ const SubscriptionManager = () => {
         window.location.href = data.url;
       } else {
         toast({
-          title: "Error",
-          description: "Failed to open customer portal. Please try again.",
-          variant: "destructive",
+          title: "Portal Unavailable",
+          description: "The customer portal is temporarily unavailable. Please contact support.",
+          variant: "default",
         });
         setLoading(false);
       }
     } catch (error) {
       console.error('Portal error:', error);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
+        title: "Portal Unavailable",
+        description: "The customer portal is temporarily unavailable. Please contact support.",
+        variant: "default",
       });
       setLoading(false);
     }
@@ -192,6 +193,7 @@ const SubscriptionManager = () => {
   const trialDaysRemaining = getTrialDaysRemaining();
   const inTrial = isInTrial();
   const cancelledButActive = isCancelledButActive();
+  const trialUsed = hasUsedTrial();
 
   return (
     <div className="space-y-6">
@@ -218,7 +220,9 @@ const SubscriptionManager = () => {
                       : inTrial 
                         ? `${trialDaysRemaining} days left in your free trial`
                         : 'You have full access to all premium features'
-                    : 'Start your 30-day free trial to unlock all features'
+                    : trialUsed
+                      ? 'Upgrade to Pro to regain access to premium features'
+                      : 'Start your 30-day free trial to unlock all features'
                   }
                 </CardDescription>
               </div>
@@ -324,7 +328,10 @@ const SubscriptionManager = () => {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Start your 30-day free trial today. No payment required upfront - we'll only charge after your trial ends.
+                {trialUsed 
+                  ? "Resubscribe to Gym Tuner Pro to regain access to all premium features."
+                  : "Start your 30-day free trial today. No payment required upfront - we'll only charge after your trial ends."
+                }
               </p>
               <Button 
                 onClick={handleSubscribe}
@@ -332,8 +339,13 @@ const SubscriptionManager = () => {
                 className="w-full sm:w-auto bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
               >
                 <Crown className="h-4 w-4 mr-2" />
-                {loading ? "Processing..." : "Start Free Trial"}
+                {loading ? "Processing..." : trialUsed ? "Resubscribe to Pro" : "Start Free Trial"}
               </Button>
+              {trialUsed && (
+                <p className="text-xs text-gray-500">
+                  Note: Trial period has been used. Subscription will start immediately at $9.99/month.
+                </p>
+              )}
             </div>
           )}
         </CardContent>
@@ -377,13 +389,17 @@ const SubscriptionManager = () => {
             </div>
             <CardTitle className="text-2xl">Gym Tuner Pro</CardTitle>
             <CardDescription>
-              Start with a 30-day free trial
+              {trialUsed ? "Resubscribe to regain access" : "Start with a 30-day free trial"}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-6">
             <div>
-              <div className="text-lg font-semibold text-green-600 mb-2">30 Days Free</div>
-              <div className="text-sm text-gray-600 mb-4">Then $9.99/month</div>
+              {!trialUsed && (
+                <div className="text-lg font-semibold text-green-600 mb-2">30 Days Free</div>
+              )}
+              <div className="text-sm text-gray-600 mb-4">
+                {trialUsed ? "Monthly subscription" : "Then"} $9.99/month
+              </div>
             </div>
             <Button 
               onClick={handleSubscribe}
@@ -392,11 +408,14 @@ const SubscriptionManager = () => {
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
             >
               <Crown className="h-5 w-5 mr-2" />
-              {loading ? "Processing..." : "Start Free Trial"}
+              {loading ? "Processing..." : trialUsed ? "Resubscribe Now" : "Start Free Trial"}
             </Button>
             <div className="text-center">
               <p className="text-xs text-gray-500">
-                No payment required today. Cancel anytime during trial.
+                {trialUsed 
+                  ? "Billing starts immediately. Cancel anytime."
+                  : "No payment required today. Cancel anytime during trial."
+                }
               </p>
             </div>
           </CardContent>

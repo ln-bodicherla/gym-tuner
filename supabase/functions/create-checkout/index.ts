@@ -41,6 +41,16 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check if user has already used their trial
+    const { data: subscriberData } = await supabaseClient
+      .from('subscribers')
+      .select('trial_used')
+      .eq('email', user.email)
+      .single();
+
+    const trialUsed = subscriberData?.trial_used || false;
+    logStep("Checked trial usage", { trialUsed });
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
@@ -53,9 +63,8 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    logStep("Creating checkout session with 30-day trial", { origin });
-
-    // Create session configuration based on whether customer exists
+    
+    // Create session configuration based on trial usage
     const sessionConfig: any = {
       line_items: [
         {
@@ -73,7 +82,6 @@ serve(async (req) => {
       ],
       mode: "subscription",
       subscription_data: {
-        trial_period_days: 30, // 30-day free trial
         metadata: {
           user_id: user.id,
           user_email: user.email,
@@ -84,6 +92,14 @@ serve(async (req) => {
       allow_promotion_codes: true,
       billing_address_collection: "auto",
     };
+
+    // Only add trial if user hasn't used it before
+    if (!trialUsed) {
+      sessionConfig.subscription_data.trial_period_days = 30;
+      logStep("Adding 30-day trial for new user");
+    } else {
+      logStep("No trial - user has already used their trial");
+    }
 
     // Only add customer-specific fields if customer exists
     if (customerId) {
@@ -98,7 +114,11 @@ serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    logStep("Checkout session created with trial", { sessionId: session.id, url: session.url, trialDays: 30 });
+    logStep("Checkout session created", { 
+      sessionId: session.id, 
+      url: session.url, 
+      trialDays: trialUsed ? 0 : 30 
+    });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

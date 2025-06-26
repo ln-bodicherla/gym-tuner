@@ -57,9 +57,11 @@ serve(async (req) => {
         subscription_tier: null,
         subscription_end: null,
         trial_end: null,
+        trial_used: false,
+        cancelled_but_active: false,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });
-      return new Response(JSON.stringify({ subscribed: false }), {
+      return new Response(JSON.stringify({ subscribed: false, trial_used: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -84,6 +86,13 @@ serve(async (req) => {
     let subscriptionEnd = null;
     let trialEnd = null;
     let cancelledButActive = false;
+    let trialUsed = false;
+
+    // Check if user has ever had a trial or subscription
+    const hasAnySubscriptionHistory = subscriptions.data.length > 0;
+    if (hasAnySubscriptionHistory) {
+      trialUsed = true; // If they have any subscription history, they've used their trial
+    }
 
     // Check for active subscriptions or trials
     for (const subscription of subscriptions.data) {
@@ -104,6 +113,7 @@ serve(async (req) => {
         // Check if currently in trial
         if (subscription.trial_end && subscription.trial_end > Math.floor(Date.now() / 1000)) {
           trialEnd = new Date(subscription.trial_end * 1000).toISOString();
+          trialUsed = true;
           logStep("Active trial found", { 
             subscriptionId: subscription.id, 
             status: subscription.status,
@@ -147,6 +157,8 @@ serve(async (req) => {
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
       trial_end: trialEnd,
+      trial_used: trialUsed,
+      cancelled_but_active: cancelledButActive,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
@@ -154,7 +166,8 @@ serve(async (req) => {
       subscribed: hasAccess, 
       subscriptionTier,
       trialEnd: trialEnd ? "Yes" : "No",
-      cancelledButActive: cancelledButActive
+      cancelledButActive: cancelledButActive,
+      trialUsed: trialUsed
     });
     
     return new Response(JSON.stringify({
@@ -162,7 +175,8 @@ serve(async (req) => {
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
       trial_end: trialEnd,
-      cancelled_but_active: cancelledButActive
+      cancelled_but_active: cancelledButActive,
+      trial_used: trialUsed
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

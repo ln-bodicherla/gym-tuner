@@ -9,6 +9,7 @@ interface SubscriptionInfo {
   subscription_end?: string;
   trial_end?: string;
   cancelled_but_active?: boolean;
+  trial_used?: boolean;
 }
 
 export const useSubscription = () => {
@@ -27,7 +28,7 @@ export const useSubscription = () => {
       } else {
         setLoading(false);
         setInitialCheckComplete(true);
-        setSubscriptionInfo({ subscribed: false });
+        setSubscriptionInfo({ subscribed: false, trial_used: false });
       }
     };
 
@@ -45,7 +46,7 @@ export const useSubscription = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         console.log('No active session found');
-        setSubscriptionInfo({ subscribed: false });
+        setSubscriptionInfo({ subscribed: false, trial_used: false });
         return;
       }
 
@@ -60,14 +61,14 @@ export const useSubscription = () => {
         // Fallback to checking local database
         const { data: localData } = await supabase
           .from('subscribers')
-          .select('subscribed, subscription_tier, subscription_end, trial_end')
+          .select('subscribed, subscription_tier, subscription_end, trial_end, trial_used, cancelled_but_active')
           .eq('user_id', user.id)
           .single();
         
         if (localData) {
           setSubscriptionInfo(localData);
         } else {
-          setSubscriptionInfo({ subscribed: false });
+          setSubscriptionInfo({ subscribed: false, trial_used: false });
         }
         return;
       }
@@ -76,7 +77,7 @@ export const useSubscription = () => {
       setSubscriptionInfo(data);
     } catch (error) {
       console.error('Error checking subscription:', error);
-      setSubscriptionInfo({ subscribed: false });
+      setSubscriptionInfo({ subscribed: false, trial_used: false });
     } finally {
       setLoading(false);
       setInitialCheckComplete(true);
@@ -96,6 +97,10 @@ export const useSubscription = () => {
     return subscriptionInfo?.cancelled_but_active || false;
   };
 
+  const hasUsedTrial = () => {
+    return subscriptionInfo?.trial_used || false;
+  };
+
   const getTrialDaysRemaining = () => {
     if (!subscriptionInfo?.trial_end) return 0;
     const trialEndDate = new Date(subscriptionInfo.trial_end);
@@ -113,6 +118,7 @@ export const useSubscription = () => {
     hasAccess,
     isInTrial,
     isCancelledButActive,
+    hasUsedTrial,
     getTrialDaysRemaining,
   };
 };
