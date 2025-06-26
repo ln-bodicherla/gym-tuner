@@ -78,16 +78,22 @@ export const useSubscription = () => {
               .eq('user_id', user.id)
               .single();
             
-            // If extended query fails, just use defaults for the new columns
-            const finalExtendedData = extendedError ? { trial_used: false, cancelled_but_active: false } : extendedData;
+            // Create a safe default object for extended data
+            const safeExtendedData = {
+              trial_used: false,
+              cancelled_but_active: false
+            };
+            
+            // If extended query succeeded and we have data, use it; otherwise use defaults
+            const finalExtendedData = !extendedError && extendedData ? extendedData : safeExtendedData;
             
             setSubscriptionInfo({
               subscribed: basicData.subscribed || false,
               subscription_tier: basicData.subscription_tier || undefined,
               subscription_end: basicData.subscription_end || undefined,
               trial_end: basicData.trial_end || undefined,
-              trial_used: finalExtendedData?.trial_used || false,
-              cancelled_but_active: finalExtendedData?.cancelled_but_active || false,
+              trial_used: finalExtendedData.trial_used || false,
+              cancelled_but_active: finalExtendedData.cancelled_but_active || false,
             });
           } else {
             setSubscriptionInfo({ subscribed: false, trial_used: false });
