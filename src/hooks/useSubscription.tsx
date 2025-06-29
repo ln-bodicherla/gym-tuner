@@ -84,10 +84,13 @@ export const useSubscription = () => {
               cancelled_but_active: false
             };
             
-            // Check if extendedData exists and doesn't have an error, then use it
+            // Check if extendedData exists, is not null, doesn't have an error, and has the expected properties
             let finalExtendedData = safeExtendedData;
-            if (!extendedError && extendedData && typeof extendedData === 'object' && 'trial_used' in extendedData) {
-              finalExtendedData = extendedData;
+            if (!extendedError && extendedData && extendedData !== null && typeof extendedData === 'object' && 'trial_used' in extendedData) {
+              finalExtendedData = {
+                trial_used: extendedData.trial_used || false,
+                cancelled_but_active: extendedData.cancelled_but_active || false
+              };
             }
             
             setSubscriptionInfo({
@@ -95,8 +98,8 @@ export const useSubscription = () => {
               subscription_tier: basicData.subscription_tier || undefined,
               subscription_end: basicData.subscription_end || undefined,
               trial_end: basicData.trial_end || undefined,
-              trial_used: finalExtendedData.trial_used || false,
-              cancelled_but_active: finalExtendedData.cancelled_but_active || false,
+              trial_used: finalExtendedData.trial_used,
+              cancelled_but_active: finalExtendedData.cancelled_but_active,
             });
           } else {
             setSubscriptionInfo({ subscribed: false, trial_used: false });
