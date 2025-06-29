@@ -88,8 +88,8 @@ export const useSubscription = () => {
             let finalExtendedData = safeExtendedData;
             if (!extendedError && extendedData && extendedData !== null && typeof extendedData === 'object' && 'trial_used' in extendedData) {
               finalExtendedData = {
-                trial_used: extendedData.trial_used ?? false,
-                cancelled_but_active: extendedData.cancelled_but_active ?? false
+                trial_used: extendedData?.trial_used ?? false,
+                cancelled_but_active: extendedData?.cancelled_but_active ?? false
               };
             }
             
