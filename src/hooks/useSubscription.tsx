@@ -84,14 +84,15 @@ export const useSubscription = () => {
               cancelled_but_active: false
             };
             
-            // Check if extendedData exists and is valid
+            // Check if extendedData is valid and extract properties safely
             let finalExtendedData = safeExtendedData;
             if (!extendedError && extendedData !== null && extendedData !== undefined && typeof extendedData === 'object') {
-              // TypeScript now knows extendedData is not null/undefined
-              if ('trial_used' in extendedData) {
+              // Use type assertion after null check to satisfy TypeScript
+              const validExtendedData = extendedData as { trial_used?: boolean; cancelled_but_active?: boolean };
+              if ('trial_used' in validExtendedData) {
                 finalExtendedData = {
-                  trial_used: extendedData.trial_used ?? false,
-                  cancelled_but_active: extendedData.cancelled_but_active ?? false
+                  trial_used: validExtendedData.trial_used ?? false,
+                  cancelled_but_active: validExtendedData.cancelled_but_active ?? false
                 };
               }
             }
