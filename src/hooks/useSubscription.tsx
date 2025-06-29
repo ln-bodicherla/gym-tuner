@@ -84,8 +84,11 @@ export const useSubscription = () => {
               cancelled_but_active: false
             };
             
-            // If extended query succeeded and we have data, use it; otherwise use defaults
-            const finalExtendedData = !extendedError && extendedData ? extendedData : safeExtendedData;
+            // Check if extendedData exists and doesn't have an error, then use it
+            let finalExtendedData = safeExtendedData;
+            if (!extendedError && extendedData && typeof extendedData === 'object' && 'trial_used' in extendedData) {
+              finalExtendedData = extendedData;
+            }
             
             setSubscriptionInfo({
               subscribed: basicData.subscribed || false,

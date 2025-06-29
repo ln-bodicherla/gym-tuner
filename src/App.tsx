@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Activity from "./pages/Activity";
 import Analytics from "./pages/Analytics";
+import Admin from "./pages/Admin";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -58,6 +59,11 @@ function App() {
                   <Route path="/analytics" element={
                     <ProtectedRoute>
                       <Analytics />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <Admin />
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
