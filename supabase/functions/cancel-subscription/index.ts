@@ -88,6 +88,8 @@ serve(async (req) => {
       subscription_tier: "Premium",
       subscription_end: new Date(updatedSubscription.current_period_end * 1000).toISOString(),
       trial_end: null,
+      cancelled_but_active: true, // Mark as cancelled but still active
+      trial_used: true, // Assume trial was used if they have a subscription
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
