@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,7 @@ const AdminAuthForm = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@gymtuner.com"
+                  placeholder="Enter your admin email"
                   required
                 />
               </div>
@@ -68,7 +69,7 @@ const AdminAuthForm = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
+                  placeholder="Enter your password"
                   required
                 />
               </div>
@@ -95,14 +96,6 @@ const AdminAuthForm = () => {
                 )}
               </Button>
             </form>
-            
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium">Default Admin Credentials:</p>
-              <p className="text-xs text-blue-600 mt-1">
-                Email: admin@gymtuner.com<br />
-                Password: admin123
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
