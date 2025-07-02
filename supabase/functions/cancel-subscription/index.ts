@@ -61,26 +61,35 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Get active subscriptions
+    // Get active subscriptions (including those in trial)
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
+      status: "all", // Get all statuses to handle trials
       limit: 10,
     });
 
-    if (subscriptions.data.length === 0) {
-      logStep("No active subscription found");
+    // Filter for active or trialing subscriptions
+    const activeSubscriptions = subscriptions.data.filter(sub => 
+      sub.status === 'active' || sub.status === 'trialing'
+    );
+
+    if (activeSubscriptions.length === 0) {
+      logStep("No active or trial subscription found");
       return new Response(JSON.stringify({ 
         success: false, 
         error: "No active subscription found to cancel. You may not have an active subscription or it may have already been cancelled." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400, // Use 400 instead of 500 for user error
+        status: 400,
       });
     }
 
-    const activeSubscription = subscriptions.data[0];
-    logStep("Found active subscription", { subscriptionId: activeSubscription.id });
+    const activeSubscription = activeSubscriptions[0];
+    logStep("Found subscription to cancel", { 
+      subscriptionId: activeSubscription.id, 
+      status: activeSubscription.status,
+      trialEnd: activeSubscription.trial_end 
+    });
 
     // Cancel the subscription at the end of the current period
     const updatedSubscription = await stripe.subscriptions.update(activeSubscription.id, {
@@ -94,16 +103,21 @@ serve(async (req) => {
     });
 
     // Update the database to reflect the cancellation
+    const isTrialing = activeSubscription.status === 'trialing';
+    const subscriptionEndDate = isTrialing && activeSubscription.trial_end 
+      ? new Date(activeSubscription.trial_end * 1000).toISOString()
+      : new Date(updatedSubscription.current_period_end * 1000).toISOString();
+
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
       user_id: user.id,
       stripe_customer_id: customerId,
-      subscribed: true, // Still subscribed until period ends
-      subscription_tier: "Premium",
-      subscription_end: new Date(updatedSubscription.current_period_end * 1000).toISOString(),
-      trial_end: null,
-      cancelled_but_active: true, // Mark as cancelled but still active
-      trial_used: true, // Assume trial was used if they have a subscription
+      subscribed: !isTrialing, // False if trialing (trial cancelled), true if active subscription
+      subscription_tier: isTrialing ? null : "Premium",
+      subscription_end: subscriptionEndDate,
+      trial_end: isTrialing ? subscriptionEndDate : null,
+      cancelled_but_active: !isTrialing, // Only true for active paid subscriptions
+      trial_used: true, // Mark trial as used
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
