@@ -9,7 +9,7 @@ import { useAdmin } from '@/hooks/useAdmin';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Users, Crown, RefreshCw, LogOut } from 'lucide-react';
+import { Shield, Users, Crown, RefreshCw, LogOut, Trash2 } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -20,6 +20,7 @@ interface UserData {
   subscription_tier?: string;
   subscription_end?: string;
   trial_end?: string;
+  cancelled_but_active?: boolean;
 }
 
 const AdminDashboard = () => {
@@ -62,6 +63,7 @@ const AdminDashboard = () => {
         subscription_tier: user.subscription_tier,
         subscription_end: user.subscription_end,
         trial_end: user.trial_end,
+        cancelled_but_active: user.cancelled_but_active,
       })) || [];
 
       setUsers(combinedUsers);
@@ -88,30 +90,45 @@ const AdminDashboard = () => {
   };
 
   const getSubscriptionStatus = (user: UserData) => {
-    if (user.subscribed) {
-      return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+    // Check if user is on trial
+    const isOnTrial = user.trial_end && new Date(user.trial_end) > new Date();
+    
+    if (user.subscribed && !user.cancelled_but_active) {
+      return <Badge className="bg-green-100 text-green-800">Active Paid Subscription</Badge>;
     }
-    if (user.trial_end && new Date(user.trial_end) > new Date()) {
-      return <Badge className="bg-blue-100 text-blue-800">Trial</Badge>;
+    if (user.subscribed && user.cancelled_but_active) {
+      return <Badge className="bg-orange-100 text-orange-800">Cancelled Paid Account</Badge>;
     }
-    return <Badge variant="secondary">Free</Badge>;
+    if (isOnTrial) {
+      return <Badge className="bg-blue-100 text-blue-800">Active Trial</Badge>;
+    }
+    return <Badge variant="secondary">Regular Free</Badge>;
   };
 
-  const makeUserAdmin = async (userId: string) => {
+  const deleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete user: ${userEmail}?`)) {
+      return;
+    }
+
     try {
-      // For the new separate admin system, we would need to create a form
-      // to add new admin accounts rather than promoting regular users
-      console.log('Making user admin is now handled separately');
+      const { error } = await supabase.auth.admin.deleteUser(userId);
       
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "Info",
-        description: "Admin accounts are now managed separately. Use the admin management interface.",
+        title: "Success",
+        description: `User ${userEmail} has been deleted successfully.`,
       });
+      
+      // Refresh the users list
+      fetchUsers();
     } catch (error) {
-      console.error('Error with admin operation:', error);
+      console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Admin operation failed",
+        description: "Failed to delete user. Please try again.",
         variant: "destructive",
       });
     }
@@ -215,15 +232,17 @@ const AdminDashboard = () => {
                     <TableCell>
                       {new Date(userData.created_at).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => makeUserAdmin(userData.id)}
-                      >
-                        Make Admin
-                      </Button>
-                    </TableCell>
+                     <TableCell>
+                       <div className="flex gap-2">
+                         <Button
+                           size="sm"
+                           variant="destructive"
+                           onClick={() => deleteUser(userData.id, userData.email)}
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                       </div>
+                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
