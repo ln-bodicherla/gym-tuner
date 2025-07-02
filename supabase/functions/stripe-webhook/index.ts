@@ -77,12 +77,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
 
   } catch (error: any) {
     console.error('[STRIPE-WEBHOOK] Error processing webhook:', error);
-    return new Response(`Webhook error: ${error.message}`, { status: 400 });
+    return new Response(`Webhook error: ${error.message}`, { 
+      status: 400,
+      headers: corsHeaders
+    });
   }
 };
 
