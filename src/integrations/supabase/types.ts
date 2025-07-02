@@ -355,6 +355,7 @@ export type Database = {
       }
       subscribers: {
         Row: {
+          cancelled_but_active: boolean | null
           created_at: string
           email: string
           id: string
@@ -363,10 +364,12 @@ export type Database = {
           subscription_end: string | null
           subscription_tier: string | null
           trial_end: string | null
+          trial_used: boolean | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          cancelled_but_active?: boolean | null
           created_at?: string
           email: string
           id?: string
@@ -375,10 +378,12 @@ export type Database = {
           subscription_end?: string | null
           subscription_tier?: string | null
           trial_end?: string | null
+          trial_used?: boolean | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          cancelled_but_active?: boolean | null
           created_at?: string
           email?: string
           id?: string
@@ -387,6 +392,7 @@ export type Database = {
           subscription_end?: string | null
           subscription_tier?: string | null
           trial_end?: string | null
+          trial_used?: boolean | null
           updated_at?: string
           user_id?: string | null
         }
