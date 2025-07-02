@@ -35,13 +35,13 @@ const TrialWelcomeEmail = ({
 }) => (
   React.createElement(Html, {},
     React.createElement(Head),
-    React.createElement(Preview, {}, 'Welcome to your 30-day free trial of Gym Tuner Pro!'),
+    React.createElement(Preview, {}, 'Welcome to your 14-day free trial of Gym Tuner Pro!'),
     React.createElement(Body, { style: main },
       React.createElement(Container, { style: container },
         React.createElement(Heading, { style: h1 }, 'Welcome to Gym Tuner Pro! 🎉'),
         React.createElement(Text, { style: text }, `Hi ${userName},`),
         React.createElement(Text, { style: text },
-          `Congratulations! Your 30-day free trial of Gym Tuner Pro has started. You now have access to all premium features until ${trialEndDate}.`
+          `Congratulations! Your 14-day free trial of Gym Tuner Pro has started. You now have access to all premium features until ${trialEndDate}.`
         ),
         React.createElement(Section, { style: featuresSection },
           React.createElement(Heading, { style: h2 }, "What's included in your Pro subscription:"),
@@ -72,7 +72,7 @@ const TrialWelcomeEmail = ({
           )
         ),
         React.createElement(Text, { style: disclaimer },
-          `Your trial will automatically convert to a paid subscription at $9.99/month on ${trialEndDate} unless cancelled. You can cancel anytime from your account settings.`
+          `Your trial will automatically convert to a paid subscription at $2.99/month on ${trialEndDate} unless cancelled. You can cancel anytime from your account settings.`
         )
       )
     )
@@ -192,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Fix: Proper date handling to avoid 1969 issue
     const now = new Date();
-    const trialEndDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+    const trialEndDate = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000)); // 14 days from now
     
     console.log('[TEST-EMAIL] Current date:', now.toISOString());
     console.log('[TEST-EMAIL] Trial end date:', trialEndDate.toISOString());

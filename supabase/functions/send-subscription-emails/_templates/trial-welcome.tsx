@@ -26,7 +26,7 @@ export const TrialWelcomeEmail = ({
 }: TrialWelcomeEmailProps) => (
   <Html>
     <Head />
-    <Preview>Welcome to your 30-day free trial of Gym Tuner Pro!</Preview>
+    <Preview>Welcome to your 14-day free trial of Gym Tuner Pro!</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>Welcome to Gym Tuner Pro! 🎉</Heading>
@@ -36,7 +36,7 @@ export const TrialWelcomeEmail = ({
         </Text>
         
         <Text style={text}>
-          Congratulations! Your 30-day free trial of Gym Tuner Pro has started. 
+          Congratulations! Your 14-day free trial of Gym Tuner Pro has started. 
           You now have access to all premium features until <strong>{trialEndDate}</strong>.
         </Text>
 
@@ -75,7 +75,7 @@ export const TrialWelcomeEmail = ({
         </Section>
 
         <Text style={disclaimer}>
-          Your trial will automatically convert to a paid subscription at $9.99/month on {trialEndDate} unless cancelled. 
+          Your trial will automatically convert to a paid subscription at $2.99/month on {trialEndDate} unless cancelled. 
           You can cancel anytime from your account settings.
         </Text>
       </Container>

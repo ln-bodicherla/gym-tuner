@@ -71,11 +71,11 @@ const SubscriptionCard = ({
         </div>
         <CardTitle className="text-xl">Gym Tuner Pro</CardTitle>
         <CardDescription>
-          Start with a 30-day free trial
+          Start with a 14-day free trial
         </CardDescription>
         <div className="text-center space-y-1">
-          <div className="text-2xl font-bold text-green-600">Free for 30 Days</div>
-          <div className="text-gray-600">Then $9.99/month</div>
+          <div className="text-2xl font-bold text-green-600">Free for 14 Days</div>
+          <div className="text-gray-600">Then $2.99/month</div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

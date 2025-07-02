@@ -74,7 +74,7 @@ serve(async (req) => {
               name: "Gym Tuner Pro",
               description: "Unlimited AI-powered workout plans and premium features"
             },
-            unit_amount: 999, // $9.99
+            unit_amount: 299, // $2.99
             recurring: { interval: "month" },
           },
           quantity: 1,
@@ -95,8 +95,8 @@ serve(async (req) => {
 
     // Only add trial if user hasn't used it before
     if (!trialUsed) {
-      sessionConfig.subscription_data.trial_period_days = 30;
-      logStep("Adding 30-day trial for new user");
+      sessionConfig.subscription_data.trial_period_days = 14;
+      logStep("Adding 14-day trial for new user");
     } else {
       logStep("No trial - user has already used their trial");
     }
@@ -117,7 +117,7 @@ serve(async (req) => {
     logStep("Checkout session created", { 
       sessionId: session.id, 
       url: session.url, 
-      trialDays: trialUsed ? 0 : 30 
+      trialDays: trialUsed ? 0 : 14 
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

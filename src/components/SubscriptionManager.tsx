@@ -222,7 +222,7 @@ const SubscriptionManager = () => {
                         : 'You have full access to all premium features'
                     : trialUsed
                       ? 'Upgrade to Pro to regain access to premium features'
-                      : 'Start your 30-day free trial to unlock all features'
+                      : 'Start your 14-day free trial to unlock all features'
                   }
                 </CardDescription>
               </div>
@@ -261,7 +261,7 @@ const SubscriptionManager = () => {
                 <div>
                   <p className="text-gray-600">Plan</p>
                   <p className="font-medium">
-                    {inTrial ? '30-Day Free Trial' : 'Monthly Pro ($9.99/month)'}
+                    {inTrial ? '14-Day Free Trial' : 'Monthly Pro ($2.99/month)'}
                   </p>
                 </div>
                 {subscriptionInfo.subscription_end && (
@@ -330,7 +330,7 @@ const SubscriptionManager = () => {
               <p className="text-sm text-gray-600">
                 {trialUsed 
                   ? "Resubscribe to Gym Tuner Pro to regain access to all premium features."
-                  : "Start your 30-day free trial today. No payment required upfront - we'll only charge after your trial ends."
+                  : "Start your 14-day free trial today. No payment required upfront - we'll only charge after your trial ends."
                 }
               </p>
               <Button 
@@ -343,7 +343,7 @@ const SubscriptionManager = () => {
               </Button>
               {trialUsed && (
                 <p className="text-xs text-gray-500">
-                  Note: Trial period has been used. Subscription will start immediately at $9.99/month.
+                  Note: Trial period has been used. Subscription will start immediately at $2.99/month.
                 </p>
               )}
             </div>
@@ -389,16 +389,16 @@ const SubscriptionManager = () => {
             </div>
             <CardTitle className="text-2xl">Gym Tuner Pro</CardTitle>
             <CardDescription>
-              {trialUsed ? "Resubscribe to regain access" : "Start with a 30-day free trial"}
+              {trialUsed ? "Resubscribe to regain access" : "Start with a 14-day free trial"}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-6">
             <div>
               {!trialUsed && (
-                <div className="text-lg font-semibold text-green-600 mb-2">30 Days Free</div>
+                <div className="text-lg font-semibold text-green-600 mb-2">14 Days Free</div>
               )}
               <div className="text-sm text-gray-600 mb-4">
-                {trialUsed ? "Monthly subscription" : "Then"} $9.99/month
+                {trialUsed ? "Monthly subscription" : "Then"} $2.99/month
               </div>
             </div>
             <Button 

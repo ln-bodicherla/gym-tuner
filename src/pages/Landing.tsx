@@ -135,7 +135,7 @@ const Landing = () => {
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Transform your fitness journey with personalized AI workout suggestions, intelligent goal tracking, 
-              and comprehensive progress analytics. Start your 30-day free trial today.
+              and comprehensive progress analytics. Start your 14-day free trial today.
             </p>
             <div className="flex justify-center">
               <Link to="/auth">
@@ -145,7 +145,7 @@ const Landing = () => {
                   eventName="hero_start_trial_click"
                 >
                   <Clock className="h-5 w-5 mr-2" />
-                  Start 30-Day Free Trial
+                  Start 14-Day Free Trial
                 </AnalyticsButton>
               </Link>
             </div>
@@ -200,7 +200,7 @@ const Landing = () => {
               Start Your Free Trial Today
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Try all premium features free for 30 days. No payment required upfront.
+              Try all premium features free for 14 days. No payment required upfront.
             </p>
           </div>
 
@@ -210,7 +210,7 @@ const Landing = () => {
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-1">
                   <Clock className="h-4 w-4" />
-                  <span>30-Day Free Trial</span>
+                  <span>14-Day Free Trial</span>
                 </div>
               </div>
               <CardHeader className="text-center pb-8 pt-8">
@@ -222,8 +222,8 @@ const Landing = () => {
                   Full access to all premium features
                 </CardDescription>
                 <div className="space-y-2">
-                  <div className="text-2xl font-bold text-green-600">Free for 30 Days</div>
-                  <div className="text-lg text-gray-600">Then $9.99/month</div>
+                   <div className="text-2xl font-bold text-green-600">Free for 14 Days</div>
+                   <div className="text-lg text-gray-600">Then $2.99/month</div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

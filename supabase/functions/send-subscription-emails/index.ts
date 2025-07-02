@@ -72,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
       emailHtml = await renderAsync(
         React.createElement(PaymentConfirmationEmail, {
           userName: emailRequest.userName || 'there',
-          amount: emailRequest.amount || '9.99',
+          amount: emailRequest.amount || '2.99',
           currency: emailRequest.currency || 'USD',
           invoiceId: emailRequest.invoiceId || 'N/A',
           transactionId: emailRequest.transactionId || 'N/A',
