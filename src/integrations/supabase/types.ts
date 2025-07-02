@@ -539,6 +539,7 @@ export type Database = {
           subscription_tier: string
           subscription_end: string
           trial_end: string
+          cancelled_but_active: boolean
         }[]
       }
       hash_password: {
