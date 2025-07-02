@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           localStorage.removeItem('supabase.auth.token');
           sessionStorage.clear();
-          window.location.href = '/';
+          window.location.href = '/auth';
         } else if (event === 'SIGNED_IN' && session?.user) {
           // Check if this is NOT a password reset flow
           const urlParams = new URLSearchParams(window.location.search);
@@ -121,14 +121,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       console.log('Successfully cleared all authentication data');
       
-      window.location.href = '/';
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
       setSession(null);
       setUser(null);
       localStorage.clear();
       sessionStorage.clear();
-      window.location.href = '/';
+      window.location.href = '/auth';
     }
   };
 

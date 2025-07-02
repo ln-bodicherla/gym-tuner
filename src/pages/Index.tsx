@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -130,7 +129,7 @@ const Index = () => {
       console.log('User clicked sign out');
       toast({
         title: "Signing out...",
-        description: "Redirecting you to the landing page.",
+        description: "Taking you to the login page.",
       });
       await signOut();
     } catch (error) {
