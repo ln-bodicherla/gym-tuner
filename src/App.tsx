@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from '@/hooks/useAuth';
+import { AdminAuthProvider } from '@/hooks/useAdminAuth';
 import { ActivityProvider } from '@/contexts/ActivityContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import Index from "./pages/Index";
@@ -17,6 +18,7 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
+import AdminAuthForm from "@/components/AdminAuthForm";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +39,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
+        <AdminAuthProvider>
+          <AuthProvider>
           <ActivityProvider>
             <Toaster />
             <Sonner />
@@ -62,6 +65,12 @@ function App() {
                       <Analytics />
                     </ProtectedRoute>
                   } />
+                  <Route path="/admin/login" element={<AdminAuthForm />} />
+                  <Route path="/admin/dashboard" element={
+                    <AdminProtectedRoute>
+                      <Admin />
+                    </AdminProtectedRoute>
+                  } />
                   <Route path="/admin" element={
                     <AdminProtectedRoute>
                       <Admin />
@@ -73,6 +82,7 @@ function App() {
             </BrowserRouter>
           </ActivityProvider>
         </AuthProvider>
+      </AdminAuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -36,26 +36,52 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_users: {
+      admin_accounts: {
         Row: {
-          created_at: string | null
+          created_at: string
           created_by: string | null
+          email: string
+          full_name: string | null
           id: string
-          user_id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          password_hash: string
+          role: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
+          email: string
+          full_name?: string | null
           id?: string
-          user_id: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          password_hash: string
+          role?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
+          email?: string
+          full_name?: string | null
           id?: string
-          user_id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          password_hash?: string
+          role?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_accounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       analytics_events: {
         Row: {
@@ -496,13 +522,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      hash_password: {
+        Args: { password: string }
+        Returns: string
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
+      verify_admin_credentials: {
+        Args: { input_email: string; input_password: string }
+        Returns: {
+          admin_id: string
+          email: string
+          full_name: string
+          role: string
+        }[]
       }
     }
     Enums: {

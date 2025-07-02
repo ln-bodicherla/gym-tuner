@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Users, Crown, RefreshCw } from 'lucide-react';
+import { Shield, Users, Crown, RefreshCw, LogOut } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -23,7 +24,8 @@ interface UserData {
 
 const AdminDashboard = () => {
   const { user } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { isAdmin, loading: adminLoading, adminUser } = useAdmin();
+  const { signOutAdmin } = useAdminAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,23 +111,19 @@ const AdminDashboard = () => {
 
   const makeUserAdmin = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('admin_users')
-        .insert({ user_id: userId, created_by: user?.id });
-
-      if (error) {
-        throw error;
-      }
-
+      // For the new separate admin system, we would need to create a form
+      // to add new admin accounts rather than promoting regular users
+      console.log('Making user admin is now handled separately');
+      
       toast({
-        title: "Success",
-        description: "User has been made an admin",
+        title: "Info",
+        description: "Admin accounts are now managed separately. Use the admin management interface.",
       });
     } catch (error) {
-      console.error('Error making user admin:', error);
+      console.error('Error with admin operation:', error);
       toast({
         title: "Error",
-        description: "Failed to make user admin",
+        description: "Admin operation failed",
         variant: "destructive",
       });
     }
@@ -142,11 +140,20 @@ const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Button onClick={fetchUsers} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-gray-600">Welcome, {adminUser?.full_name || adminUser?.email}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={fetchUsers} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={signOutAdmin} variant="outline">
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
