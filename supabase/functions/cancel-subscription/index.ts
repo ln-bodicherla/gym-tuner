@@ -48,7 +48,14 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+      logStep("No Stripe customer found");
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "No subscription found. You may not have an active subscription or account with us." 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
     }
     
     const customerId = customers.data[0].id;
@@ -62,7 +69,14 @@ serve(async (req) => {
     });
 
     if (subscriptions.data.length === 0) {
-      throw new Error("No active subscription found to cancel");
+      logStep("No active subscription found");
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "No active subscription found to cancel. You may not have an active subscription or it may have already been cancelled." 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, // Use 400 instead of 500 for user error
+      });
     }
 
     const activeSubscription = subscriptions.data[0];
