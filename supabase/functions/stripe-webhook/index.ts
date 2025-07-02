@@ -11,13 +11,30 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   const signature = req.headers.get('stripe-signature');
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
+  console.log('[STRIPE-WEBHOOK] Webhook secret exists:', !!webhookSecret);
+  console.log('[STRIPE-WEBHOOK] Signature exists:', !!signature);
+
   if (!signature || !webhookSecret) {
     console.error('[STRIPE-WEBHOOK] Missing signature or webhook secret');
-    return new Response('Missing signature or webhook secret', { status: 400 });
+    return new Response('Missing signature or webhook secret', { 
+      status: 400,
+      headers: corsHeaders
+    });
   }
 
   try {
