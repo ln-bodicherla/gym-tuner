@@ -16,6 +16,7 @@ import Admin from "./pages/Admin";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminProtectedRoute from "@/components/AdminProtectedRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,9 +63,9 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="/admin" element={
-                    <ProtectedRoute>
+                    <AdminProtectedRoute>
                       <Admin />
-                    </ProtectedRoute>
+                    </AdminProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

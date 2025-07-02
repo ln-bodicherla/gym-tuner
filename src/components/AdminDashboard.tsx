@@ -34,10 +34,8 @@ const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchUsers();
-    }
-  }, [isAdmin]);
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -137,16 +135,6 @@ const AdminDashboard = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 space-y-4">
-        <Shield className="h-16 w-16 text-gray-400" />
-        <h2 className="text-2xl font-bold text-gray-600">Access Denied</h2>
-        <p className="text-gray-500">You don't have admin privileges to access this dashboard.</p>
       </div>
     );
   }
