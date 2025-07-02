@@ -530,6 +530,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_admin_request: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_current_session_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       verify_admin_credentials: {
         Args: { input_email: string; input_password: string }
         Returns: {

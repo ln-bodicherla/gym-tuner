@@ -43,38 +43,60 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch profiles with their subscription info
+      // Since admin accounts are separate, we need to use RPC or direct queries
+      // First try to get all subscribers (this should work with the new RLS policies)
+      const { data: subscribersData, error: subscribersError } = await supabase
+        .from('subscribers')
+        .select('id, user_id, email, subscribed, subscription_tier, subscription_end, trial_end, created_at');
+
+      if (subscribersError) {
+        console.error('Error fetching subscribers:', subscribersError);
+        throw subscribersError;
+      }
+
+      // Try to get profiles - if this fails due to RLS, we'll work with subscriber data only
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, created_at');
 
       if (profilesError) {
-        throw profilesError;
+        console.error('Error fetching profiles:', profilesError);
+        // If profiles fetch fails, we'll use subscriber data as the primary source
       }
 
-      // Fetch subscribers data
-      const { data: subscribersData, error: subscribersError } = await supabase
-        .from('subscribers')
-        .select('user_id, email, subscribed, subscription_tier, subscription_end, trial_end');
-
-      if (subscribersError) {
-        throw subscribersError;
+      // Combine the data - prioritize subscribers data since it's more likely to be accessible
+      let combinedUsers: UserData[] = [];
+      
+      if (subscribersData && subscribersData.length > 0) {
+        // Use subscribers as primary data source
+        combinedUsers = subscribersData.map(subscriber => {
+          const profile = profilesData?.find(p => p.id === subscriber.user_id);
+          return {
+            id: subscriber.user_id || `sub-${subscriber.id}`, // Fallback to subscriber ID if no user_id
+            email: subscriber.email,
+            full_name: profile?.full_name || 'Unknown',
+            created_at: subscriber.created_at || profile?.created_at || new Date().toISOString(),
+            subscribed: subscriber.subscribed,
+            subscription_tier: subscriber.subscription_tier,
+            subscription_end: subscriber.subscription_end,
+            trial_end: subscriber.trial_end,
+          };
+        });
+      } else if (profilesData && profilesData.length > 0) {
+        // Fallback to profiles only
+        combinedUsers = profilesData.map(profile => {
+          return {
+            id: profile.id,
+            email: 'No subscription data',
+            full_name: profile.full_name,
+            created_at: profile.created_at,
+            subscribed: false,
+            subscription_tier: undefined,
+            subscription_end: undefined,
+            trial_end: undefined,
+          };
+        });
       }
-
-      // Combine the data
-      const combinedUsers = profilesData?.map(profile => {
-        const subscription = subscribersData?.find(sub => sub.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: subscription?.email || 'No email',
-          full_name: profile.full_name,
-          created_at: profile.created_at,
-          subscribed: subscription?.subscribed || false,
-          subscription_tier: subscription?.subscription_tier,
-          subscription_end: subscription?.subscription_end,
-          trial_end: subscription?.trial_end,
-        };
-      }) || [];
 
       setUsers(combinedUsers);
 
