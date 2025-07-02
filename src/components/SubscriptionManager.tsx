@@ -72,57 +72,6 @@ const SubscriptionManager = () => {
     }
   };
 
-  const handleManageSubscription = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to manage your subscription.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        body: { userId: user.id }
-      });
-
-      if (error) {
-        console.error('Portal error:', error);
-        // If portal fails, show a helpful message instead of an error
-        toast({
-          title: "Portal Unavailable",
-          description: "The customer portal is temporarily unavailable. Please contact support or use the resubscribe option below.",
-          variant: "default",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        toast({
-          title: "Portal Unavailable",
-          description: "The customer portal is temporarily unavailable. Please contact support.",
-          variant: "default",
-        });
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Portal error:', error);
-      toast({
-        title: "Portal Unavailable",
-        description: "The customer portal is temporarily unavailable. Please contact support.",
-        variant: "default",
-      });
-      setLoading(false);
-    }
-  };
 
   const handleCancelSubscription = async () => {
     setCancellingSubscription(true);
@@ -344,54 +293,44 @@ const SubscriptionManager = () => {
                     {reactivatingSubscription ? "Reactivating..." : "Reactivate Subscription"}
                   </Button>
                 ) : (
-                  <>
-                    <Button 
-                      onClick={handleManageSubscription}
-                      disabled={loading}
-                      variant="outline"
-                      className="flex-1 sm:flex-none"
-                    >
-                      {loading ? "Loading..." : "Manage Subscription"}
-                    </Button>
-                    <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                      <DialogTrigger asChild>
+                  <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        Cancel Subscription
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center space-x-2">
+                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                          <span>Cancel Subscription</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to cancel your Gym Tuner Pro subscription? 
+                          You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end space-x-2 mt-4">
                         <Button 
-                          variant="outline"
-                          className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
+                          variant="outline" 
+                          onClick={() => setShowCancelDialog(false)}
+                          disabled={cancellingSubscription}
                         >
-                          Cancel Subscription
+                          Keep Subscription
                         </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center space-x-2">
-                            <AlertTriangle className="h-5 w-5 text-red-500" />
-                            <span>Cancel Subscription</span>
-                          </DialogTitle>
-                          <DialogDescription>
-                            Are you sure you want to cancel your Gym Tuner Pro subscription? 
-                            You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex justify-end space-x-2 mt-4">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setShowCancelDialog(false)}
-                            disabled={cancellingSubscription}
-                          >
-                            Keep Subscription
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            onClick={handleCancelSubscription}
-                            disabled={cancellingSubscription}
-                          >
-                            {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </>
+                        <Button 
+                          variant="destructive" 
+                          onClick={handleCancelSubscription}
+                          disabled={cancellingSubscription}
+                        >
+                          {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
             </div>
