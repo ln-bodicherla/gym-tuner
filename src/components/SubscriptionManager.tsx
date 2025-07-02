@@ -13,6 +13,7 @@ import { PRO_FEATURES } from "@/config/subscriptionFeatures";
 const SubscriptionManager = () => {
   const [loading, setLoading] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [reactivatingSubscription, setReactivatingSubscription] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { toast } = useToast();
   const { subscriptionInfo, checkSubscriptionStatus, isInTrial, isCancelledButActive, hasUsedTrial, getTrialDaysRemaining } = useSubscription();
@@ -182,6 +183,64 @@ const SubscriptionManager = () => {
     }
   };
 
+  const handleReactivateSubscription = async () => {
+    setReactivatingSubscription(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to reactivate your subscription.",
+          variant: "destructive",
+        });
+        setReactivatingSubscription(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('reactivate-subscription', {
+        body: { userId: user.id }
+      });
+
+      if (error) {
+        console.error('Reactivate error:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to reactivate subscription. Please try again.",
+          variant: "destructive",
+        });
+        setReactivatingSubscription(false);
+        return;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Subscription Reactivated",
+          description: "Your subscription has been successfully reactivated!",
+        });
+        // Refresh subscription status
+        setTimeout(() => {
+          checkSubscriptionStatus();
+        }, 2000);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to reactivate subscription. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Reactivate error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setReactivatingSubscription(false);
+    }
+  };
+
   const proFeatures = PRO_FEATURES.map((feature, index) => {
     const icons = [Activity, TrendingUp, Target, Crown, BarChart3, Star, Zap];
     return {
@@ -275,53 +334,64 @@ const SubscriptionManager = () => {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleManageSubscription}
-                  disabled={loading}
-                  variant="outline"
-                  className="flex-1 sm:flex-none"
-                >
-                  {loading ? "Loading..." : "Manage Subscription"}
-                </Button>
-                {!cancelledButActive && (
-                  <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        Cancel Subscription
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center space-x-2">
-                          <AlertTriangle className="h-5 w-5 text-red-500" />
-                          <span>Cancel Subscription</span>
-                        </DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to cancel your Gym Tuner Pro subscription? 
-                          You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="flex justify-end space-x-2 mt-4">
+                {cancelledButActive ? (
+                  <Button 
+                    onClick={handleReactivateSubscription}
+                    disabled={reactivatingSubscription}
+                    className="flex-1 sm:flex-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                  >
+                    <Crown className="h-4 w-4 mr-2" />
+                    {reactivatingSubscription ? "Reactivating..." : "Reactivate Subscription"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      onClick={handleManageSubscription}
+                      disabled={loading}
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                    >
+                      {loading ? "Loading..." : "Manage Subscription"}
+                    </Button>
+                    <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                      <DialogTrigger asChild>
                         <Button 
-                          variant="outline" 
-                          onClick={() => setShowCancelDialog(false)}
-                          disabled={cancellingSubscription}
+                          variant="outline"
+                          className="flex-1 sm:flex-none text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          Keep Subscription
+                          Cancel Subscription
                         </Button>
-                        <Button 
-                          variant="destructive" 
-                          onClick={handleCancelSubscription}
-                          disabled={cancellingSubscription}
-                        >
-                          {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center space-x-2">
+                            <AlertTriangle className="h-5 w-5 text-red-500" />
+                            <span>Cancel Subscription</span>
+                          </DialogTitle>
+                          <DialogDescription>
+                            Are you sure you want to cancel your Gym Tuner Pro subscription? 
+                            You'll continue to have access to all features until the end of your current {inTrial ? 'trial' : 'billing'} period.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex justify-end space-x-2 mt-4">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowCancelDialog(false)}
+                            disabled={cancellingSubscription}
+                          >
+                            Keep Subscription
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            onClick={handleCancelSubscription}
+                            disabled={cancellingSubscription}
+                          >
+                            {cancellingSubscription ? "Cancelling..." : "Cancel Subscription"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </>
                 )}
               </div>
             </div>
